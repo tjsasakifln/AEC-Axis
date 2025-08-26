@@ -86,6 +86,18 @@ Security:  JWT | bcrypt | GDPR compliant
   - Automated tests (100% endpoint coverage)
   - Microservices architecture
 
+- [x] **Project Management**
+  - Complete CRUD operations for projects
+  - Multi-tenancy with company isolation
+  - Comprehensive test coverage
+  - UUID-based primary keys for security
+
+- [x] **Supplier Management**
+  - Complete CRUD operations for suppliers
+  - CNPJ validation and uniqueness per company
+  - Email validation and secure authentication
+  - Cross-company access prevention
+
 ### **🔄 In Development (Phase 2)**
 - [ ] **IFC Processing Pipeline**
   - Secure upload to AWS S3
@@ -100,7 +112,6 @@ Security:  JWT | bcrypt | GDPR compliant
 
 ### **📅 Roadmap (Phases 3-4)**
 - [ ] **Quotation System**
-  - Supplier CRUD operations
   - Automatic RFQ generation
   - Public interface for quotations
   - Intelligent comparative dashboard

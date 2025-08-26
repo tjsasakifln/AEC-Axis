@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from backend.app.db import get_db
 from backend.app.db.models.supplier import Supplier
 from backend.app.db.models.user import User
-from backend.app.schemas.supplier import SupplierCreate, SupplierResponse
+from backend.app.schemas.supplier import SupplierCreate, SupplierUpdate, SupplierResponse
 from backend.app.dependencies import get_current_user
 
 router = APIRouter(prefix="/suppliers", tags=["Suppliers"])
@@ -124,3 +124,102 @@ def get_supplier_by_id(
         )
     
     return supplier
+
+
+@router.put("/{supplier_id}", response_model=SupplierResponse)
+def update_supplier(
+    supplier_id: str,
+    supplier_data: SupplierUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> SupplierResponse:
+    """
+    Update a specific supplier by ID.
+    
+    Args:
+        supplier_id: UUID of the supplier to update
+        supplier_data: Supplier update data
+        current_user: Current authenticated user
+        db: Database session
+        
+    Returns:
+        Updated supplier data
+        
+    Raises:
+        HTTPException: 404 if supplier not found or doesn't belong to user's company
+    """
+    try:
+        supplier_uuid = uuid.UUID(supplier_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Supplier not found"
+        )
+    
+    supplier = db.query(Supplier).filter(
+        Supplier.id == supplier_uuid,
+        Supplier.company_id == current_user.company_id
+    ).first()
+    
+    if not supplier:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Supplier not found"
+        )
+    
+    # Update fields that are provided in the request
+    update_data = supplier_data.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(supplier, field, value)
+    
+    try:
+        db.commit()
+        db.refresh(supplier)
+        return supplier
+        
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="CNPJ already exists for this company"
+        )
+
+
+@router.delete("/{supplier_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_supplier(
+    supplier_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a specific supplier by ID.
+    
+    Args:
+        supplier_id: UUID of the supplier to delete
+        current_user: Current authenticated user
+        db: Database session
+        
+    Raises:
+        HTTPException: 404 if supplier not found or doesn't belong to user's company
+    """
+    try:
+        supplier_uuid = uuid.UUID(supplier_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Supplier not found"
+        )
+    
+    supplier = db.query(Supplier).filter(
+        Supplier.id == supplier_uuid,
+        Supplier.company_id == current_user.company_id
+    ).first()
+    
+    if not supplier:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Supplier not found"
+        )
+    
+    db.delete(supplier)
+    db.commit()

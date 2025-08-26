@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime
 
 from pydantic import BaseModel, Field
+from typing import Optional
 
 
 class SupplierBase(BaseModel):
@@ -17,6 +18,13 @@ class SupplierBase(BaseModel):
 class SupplierCreate(SupplierBase):
     """Schema for creating a new supplier."""
     pass
+
+
+class SupplierUpdate(BaseModel):
+    """Schema for updating a supplier with optional fields."""
+    name: Optional[str] = Field(None, min_length=1, description="Supplier name")
+    cnpj: Optional[str] = Field(None, min_length=1, description="Supplier CNPJ")
+    email: Optional[str] = Field(None, min_length=1, description="Supplier email")
 
 
 class SupplierResponse(SupplierBase):

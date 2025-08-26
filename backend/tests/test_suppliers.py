@@ -316,3 +316,248 @@ def test_get_supplier_unauthenticated_fails(client):
     assert response.status_code in [401, 403]
     response_data = response.json()
     assert "detail" in response_data
+
+
+def test_update_supplier_success(client, auth_token):
+    """Teste para verificar a atualização bem-sucedida de um fornecedor"""
+    # Criar um fornecedor
+    supplier_data = {
+        "name": "Fornecedor Original",
+        "cnpj": "11.222.333/0001-44",
+        "email": "original@fornecedor.com"
+    }
+    
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    response = client.post("/suppliers", json=supplier_data, headers=headers)
+    
+    assert response.status_code == 201
+    created_supplier = response.json()
+    supplier_id = created_supplier["id"]
+    
+    # Atualizar o fornecedor
+    updated_data = {
+        "name": "Fornecedor Atualizado",
+        "email": "atualizado@fornecedor.com"
+    }
+    
+    response = client.put(f"/suppliers/{supplier_id}", json=updated_data, headers=headers)
+    
+    assert response.status_code == 200
+    updated_supplier = response.json()
+    
+    # Verificar se os dados foram atualizados
+    assert updated_supplier["id"] == supplier_id
+    assert updated_supplier["name"] == updated_data["name"]
+    assert updated_supplier["email"] == updated_data["email"]
+    assert updated_supplier["cnpj"] == supplier_data["cnpj"]  # CNPJ deve permanecer o mesmo
+
+
+def test_update_supplier_not_found(client, auth_token):
+    """Teste para verificar resposta 404 ao tentar atualizar fornecedor inexistente"""
+    # Usar um UUID aleatório inexistente
+    nonexistent_id = str(uuid.uuid4())
+    
+    updated_data = {
+        "name": "Fornecedor Inexistente",
+        "email": "inexistente@fornecedor.com"
+    }
+    
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    response = client.put(f"/suppliers/{nonexistent_id}", json=updated_data, headers=headers)
+    
+    assert response.status_code == 404
+    response_data = response.json()
+    assert "detail" in response_data
+
+
+def test_update_supplier_wrong_company_fails(client, db_session):
+    """Teste para verificar falha ao tentar atualizar fornecedor de outra empresa"""
+    # Criar primeira empresa e usuário
+    company1 = Company(
+        name="Company 1",
+        cnpj="11.111.111/0001-11",
+        address="Address 1"
+    )
+    db_session.add(company1)
+    db_session.commit()
+    db_session.refresh(company1)
+    
+    user1 = User(
+        email="user1@company1.com",
+        hashed_password=hash_password("senha123"),
+        full_name="User 1",
+        company_id=company1.id
+    )
+    db_session.add(user1)
+    db_session.commit()
+    
+    # Criar segunda empresa e usuário
+    company2 = Company(
+        name="Company 2",
+        cnpj="22.222.222/0002-22",
+        address="Address 2"
+    )
+    db_session.add(company2)
+    db_session.commit()
+    db_session.refresh(company2)
+    
+    user2 = User(
+        email="user2@company2.com",
+        hashed_password=hash_password("senha123"),
+        full_name="User 2",
+        company_id=company2.id
+    )
+    db_session.add(user2)
+    db_session.commit()
+    
+    # Obter tokens de autenticação para ambos os usuários
+    login_data1 = {"email": "user1@company1.com", "password": "senha123"}
+    response1 = client.post("/auth/token", json=login_data1)
+    assert response1.status_code == 200
+    token1 = response1.json()["access_token"]
+    
+    login_data2 = {"email": "user2@company2.com", "password": "senha123"}
+    response2 = client.post("/auth/token", json=login_data2)
+    assert response2.status_code == 200
+    token2 = response2.json()["access_token"]
+    
+    # Criar fornecedor com usuário da empresa 1
+    supplier_data = {
+        "name": "Fornecedor Company 1",
+        "cnpj": "11.333.444/0001-55",
+        "email": "fornecedor@company1.com"
+    }
+    
+    headers1 = {"Authorization": f"Bearer {token1}"}
+    response = client.post("/suppliers", json=supplier_data, headers=headers1)
+    assert response.status_code == 201
+    supplier = response.json()
+    supplier_id = supplier["id"]
+    
+    # Tentar atualizar o fornecedor usando token da empresa 2
+    updated_data = {
+        "name": "Fornecedor Hackeado",
+        "email": "hackeado@company2.com"
+    }
+    
+    headers2 = {"Authorization": f"Bearer {token2}"}
+    response = client.put(f"/suppliers/{supplier_id}", json=updated_data, headers=headers2)
+    
+    assert response.status_code == 404
+    response_data = response.json()
+    assert "detail" in response_data
+
+
+def test_delete_supplier_success(client, auth_token):
+    """Teste para verificar a exclusão bem-sucedida de um fornecedor"""
+    # Criar um fornecedor
+    supplier_data = {
+        "name": "Fornecedor Para Deletar",
+        "cnpj": "99.888.777/0001-66",
+        "email": "deletar@fornecedor.com"
+    }
+    
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    response = client.post("/suppliers", json=supplier_data, headers=headers)
+    
+    assert response.status_code == 201
+    created_supplier = response.json()
+    supplier_id = created_supplier["id"]
+    
+    # Deletar o fornecedor
+    response = client.delete(f"/suppliers/{supplier_id}", headers=headers)
+    
+    assert response.status_code == 204
+    
+    # Verificar se o fornecedor foi realmente deletado
+    response = client.get(f"/suppliers/{supplier_id}", headers=headers)
+    
+    assert response.status_code == 404
+    response_data = response.json()
+    assert "detail" in response_data
+
+
+def test_delete_supplier_not_found(client, auth_token):
+    """Teste para verificar resposta 404 ao tentar deletar fornecedor inexistente"""
+    # Usar um UUID aleatório inexistente
+    nonexistent_id = str(uuid.uuid4())
+    
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    response = client.delete(f"/suppliers/{nonexistent_id}", headers=headers)
+    
+    assert response.status_code == 404
+    response_data = response.json()
+    assert "detail" in response_data
+
+
+def test_delete_supplier_wrong_company_fails(client, db_session):
+    """Teste para verificar falha ao tentar deletar fornecedor de outra empresa"""
+    # Criar primeira empresa e usuário
+    company1 = Company(
+        name="Company 1",
+        cnpj="11.111.111/0001-11",
+        address="Address 1"
+    )
+    db_session.add(company1)
+    db_session.commit()
+    db_session.refresh(company1)
+    
+    user1 = User(
+        email="user1@company1.com",
+        hashed_password=hash_password("senha123"),
+        full_name="User 1",
+        company_id=company1.id
+    )
+    db_session.add(user1)
+    db_session.commit()
+    
+    # Criar segunda empresa e usuário
+    company2 = Company(
+        name="Company 2",
+        cnpj="22.222.222/0002-22",
+        address="Address 2"
+    )
+    db_session.add(company2)
+    db_session.commit()
+    db_session.refresh(company2)
+    
+    user2 = User(
+        email="user2@company2.com",
+        hashed_password=hash_password("senha123"),
+        full_name="User 2",
+        company_id=company2.id
+    )
+    db_session.add(user2)
+    db_session.commit()
+    
+    # Obter tokens de autenticação para ambos os usuários
+    login_data1 = {"email": "user1@company1.com", "password": "senha123"}
+    response1 = client.post("/auth/token", json=login_data1)
+    assert response1.status_code == 200
+    token1 = response1.json()["access_token"]
+    
+    login_data2 = {"email": "user2@company2.com", "password": "senha123"}
+    response2 = client.post("/auth/token", json=login_data2)
+    assert response2.status_code == 200
+    token2 = response2.json()["access_token"]
+    
+    # Criar fornecedor com usuário da empresa 1
+    supplier_data = {
+        "name": "Fornecedor Company 1",
+        "cnpj": "11.333.444/0001-55",
+        "email": "fornecedor@company1.com"
+    }
+    
+    headers1 = {"Authorization": f"Bearer {token1}"}
+    response = client.post("/suppliers", json=supplier_data, headers=headers1)
+    assert response.status_code == 201
+    supplier = response.json()
+    supplier_id = supplier["id"]
+    
+    # Tentar deletar o fornecedor usando token da empresa 2
+    headers2 = {"Authorization": f"Bearer {token2}"}
+    response = client.delete(f"/suppliers/{supplier_id}", headers=headers2)
+    
+    assert response.status_code == 404
+    response_data = response.json()
+    assert "detail" in response_data
