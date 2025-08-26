@@ -3,6 +3,7 @@ Main FastAPI application for AEC Axis.
 """
 from fastapi import FastAPI
 
+from backend.app.api.auth import router as auth_router
 from backend.app.api.companies import router as companies_router
 from backend.app.api.users import router as users_router
 
@@ -13,6 +14,7 @@ app = FastAPI(
 )
 
 # Include routers
+app.include_router(auth_router)
 app.include_router(companies_router)
 app.include_router(users_router)
 
