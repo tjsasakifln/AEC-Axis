@@ -6,7 +6,6 @@ This module contains endpoints for user authentication including login.
 from datetime import datetime, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import HTTPBearer
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
@@ -22,7 +21,6 @@ SECRET_KEY = "your-secret-key-here"  # TODO: Move to environment variable
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-security = HTTPBearer()
 
 
 class LoginRequest(BaseModel):
@@ -114,3 +112,5 @@ def login_for_access_token(
         access_token=access_token,
         token_type="bearer"
     )
+
+

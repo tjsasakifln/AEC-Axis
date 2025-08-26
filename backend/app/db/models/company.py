@@ -32,7 +32,7 @@ class Company(Base):
     
     # Relationships
     users = relationship("User", back_populates="company")
-    # projects = relationship("Project", back_populates="company") 
+    projects = relationship("Project", back_populates="company") 
     # suppliers = relationship("Supplier", back_populates="company")
     
     def __repr__(self) -> str:
