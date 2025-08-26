@@ -194,11 +194,12 @@ class TestUsersEndpoints:
         Expected status code: 400 (Bad Request)
         """
         # Arrange
+        import uuid
         user_data = {
             "email": "usuario@empresainvalida.com",
             "full_name": "Usuário com Empresa Inválida",
             "password": "senha123",
-            "company_id": 99999  # Non-existent company ID
+            "company_id": str(uuid.uuid4())  # Non-existent company UUID
         }
         
         # Act

@@ -1,6 +1,7 @@
 """
 Pydantic schemas for User endpoints.
 """
+import uuid
 from datetime import datetime
 from typing import Optional
 
@@ -11,7 +12,7 @@ class UserBase(BaseModel):
     """Base user schema with common fields."""
     email: EmailStr = Field(..., description="User email")
     full_name: str = Field(..., min_length=1, description="User full name")
-    company_id: int = Field(..., gt=0, description="Company ID")
+    company_id: uuid.UUID = Field(..., description="Company ID")
 
 
 class UserCreate(UserBase):
@@ -21,7 +22,7 @@ class UserCreate(UserBase):
 
 class UserResponse(UserBase):
     """Schema for user responses."""
-    id: int
+    id: uuid.UUID
     is_active: bool
     created_at: datetime
     updated_at: datetime

@@ -1,6 +1,7 @@
 """
 Pydantic schemas for Company endpoints.
 """
+import uuid
 from datetime import datetime
 from typing import Optional
 
@@ -23,7 +24,7 @@ class CompanyCreate(CompanyBase):
 
 class CompanyResponse(CompanyBase):
     """Schema for company responses."""
-    id: int
+    id: uuid.UUID
     created_at: datetime
     updated_at: datetime
     

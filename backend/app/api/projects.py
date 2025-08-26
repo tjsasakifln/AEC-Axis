@@ -3,6 +3,8 @@ Projects API endpoints for AEC Axis.
 
 This module contains endpoints for managing construction projects.
 """
+import uuid
+from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -46,3 +48,67 @@ def create_project(
     db.refresh(db_project)
     
     return db_project
+
+
+@router.get("/", response_model=List[ProjectResponse])
+def get_projects(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> List[ProjectResponse]:
+    """
+    Get all projects for the authenticated user's company.
+    
+    Args:
+        current_user: Current authenticated user
+        db: Database session
+        
+    Returns:
+        List of projects belonging to the user's company
+    """
+    projects = db.query(Project).filter(
+        Project.company_id == current_user.company_id
+    ).all()
+    
+    return projects
+
+
+@router.get("/{project_id}", response_model=ProjectResponse)
+def get_project_by_id(
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> ProjectResponse:
+    """
+    Get a specific project by ID.
+    
+    Args:
+        project_id: UUID of the project to retrieve
+        current_user: Current authenticated user
+        db: Database session
+        
+    Returns:
+        Project data
+        
+    Raises:
+        HTTPException: 404 if project not found or doesn't belong to user's company
+    """
+    try:
+        project_uuid = uuid.UUID(project_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found"
+        )
+    
+    project = db.query(Project).filter(
+        Project.id == project_uuid,
+        Project.company_id == current_user.company_id
+    ).first()
+    
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found"
+        )
+    
+    return project

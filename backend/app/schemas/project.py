@@ -1,6 +1,7 @@
 """
 Pydantic schemas for Project endpoints.
 """
+import uuid
 from datetime import datetime, date
 from typing import Optional
 
@@ -21,8 +22,8 @@ class ProjectCreate(ProjectBase):
 
 class ProjectResponse(ProjectBase):
     """Schema for project responses."""
-    id: int
-    company_id: int
+    id: uuid.UUID
+    company_id: uuid.UUID
     created_at: datetime
     updated_at: datetime
     

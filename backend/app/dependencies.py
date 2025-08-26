@@ -4,6 +4,7 @@ Dependencies for AEC Axis API endpoints.
 This module contains common dependencies used across multiple API endpoints,
 such as authentication and database session dependencies.
 """
+import uuid
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -50,7 +51,7 @@ def get_current_user(
     except JWTError:
         raise credentials_exception
     
-    user = db.query(User).filter(User.id == int(user_id)).first()
+    user = db.query(User).filter(User.id == uuid.UUID(user_id)).first()
     if user is None:
         raise credentials_exception
     

@@ -4,7 +4,9 @@ Project model for AEC Axis.
 This model represents the projects table as specified in the PRD requirements.
 Projects are construction projects managed by companies on the AEC Axis platform.
 """
+import uuid
 from sqlalchemy import Column, Integer, String, DateTime, Date, ForeignKey, func
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import relationship
 
 from backend.app.db.base import Base
@@ -20,13 +22,13 @@ class Project(Base):
     """
     __tablename__ = "projects"
     
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     name = Column(String, nullable=False, index=True)
     address = Column(String, nullable=True)
     start_date = Column(Date, nullable=True)
     
     # Foreign key to companies table
-    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
+    company_id = Column(PG_UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False, index=True)
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

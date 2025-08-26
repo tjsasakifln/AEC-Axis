@@ -4,7 +4,9 @@ Company model for AEC Axis.
 This model represents the companies table as specified in the PRD requirements.
 Companies are the client organizations that use the AEC Axis platform.
 """
+import uuid
 from sqlalchemy import Column, Integer, String, DateTime, func
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import relationship
 
 from backend.app.db.base import Base
@@ -19,7 +21,7 @@ class Company(Base):
     """
     __tablename__ = "companies"
     
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     name = Column(String, nullable=False, index=True)
     cnpj = Column(String(18), unique=True, nullable=False, index=True)
     email = Column(String, nullable=True)
