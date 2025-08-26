@@ -1,0 +1,37 @@
+# Backend Dependencies - AEC Axis
+# FastAPI and related dependencies
+fastapi>=0.111.0
+uvicorn[standard]
+pydantic>=2.0.0
+email-validator
+
+# Database
+asyncpg
+sqlalchemy>=2.0.0
+
+# Authentication and Security
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+
+# AWS Services
+boto3
+aiobotocore
+
+# IFC Processing
+ifcopenshell
+
+# WebSocket support
+websockets
+fastapi-websocket-pubsub
+
+# Testing
+pytest
+pytest-asyncio
+httpx
+
+# Development
+python-dotenv
+
+# Database Migration
+alembic
