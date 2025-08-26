@@ -306,3 +306,232 @@ def test_get_project_by_id_unauthenticated_fails(client):
     assert response.status_code in [401, 403]
     response_data = response.json()
     assert "detail" in response_data
+
+
+def test_update_project_success(client, auth_token):
+    """Teste para verificar a atualização bem-sucedida de um projeto"""
+    # Criar um projeto primeiro
+    project_data = {
+        "name": "Original Project",
+        "address": "Original Address",
+        "start_date": "2024-01-15"
+    }
+    
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    response = client.post("/projects", json=project_data, headers=headers)
+    
+    assert response.status_code == 201
+    created_project = response.json()
+    project_id = created_project["id"]
+    
+    # Atualizar o projeto
+    update_data = {
+        "name": "Updated Project",
+        "address": "Updated Address"
+    }
+    
+    response = client.put(f"/projects/{project_id}", json=update_data, headers=headers)
+    
+    assert response.status_code == 200
+    updated_project = response.json()
+    
+    # Verificar se os dados foram atualizados
+    assert updated_project["id"] == project_id
+    assert updated_project["name"] == update_data["name"]
+    assert updated_project["address"] == update_data["address"]
+    # start_date deve permanecer igual
+    assert updated_project["start_date"] == project_data["start_date"]
+
+
+def test_update_project_not_found(client, auth_token):
+    """Teste para verificar resposta 404 ao tentar atualizar projeto inexistente"""
+    # Usar um UUID aleatório inexistente
+    nonexistent_id = str(uuid.uuid4())
+    
+    update_data = {
+        "name": "Updated Project",
+        "address": "Updated Address"
+    }
+    
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    response = client.put(f"/projects/{nonexistent_id}", json=update_data, headers=headers)
+    
+    assert response.status_code == 404
+    response_data = response.json()
+    assert "detail" in response_data
+
+
+def test_update_project_wrong_company_fails(client, db_session):
+    """Teste para verificar que usuário de uma empresa não consegue atualizar projeto de outra empresa"""
+    # Criar primeira empresa e usuário
+    company1 = Company(
+        name="Company 1",
+        cnpj="11.111.111/0001-11",
+        address="Address 1"
+    )
+    db_session.add(company1)
+    db_session.commit()
+    db_session.refresh(company1)
+    
+    user1 = User(
+        email="user1@company1.com",
+        hashed_password=hash_password("senha123"),
+        full_name="User 1",
+        company_id=company1.id
+    )
+    db_session.add(user1)
+    db_session.commit()
+    
+    # Criar segunda empresa e usuário
+    company2 = Company(
+        name="Company 2",
+        cnpj="22.222.222/0002-22",
+        address="Address 2"
+    )
+    db_session.add(company2)
+    db_session.commit()
+    db_session.refresh(company2)
+    
+    user2 = User(
+        email="user2@company2.com",
+        hashed_password=hash_password("senha123"),
+        full_name="User 2",
+        company_id=company2.id
+    )
+    db_session.add(user2)
+    db_session.commit()
+    
+    # Obter tokens de autenticação para ambos os usuários
+    login_data1 = {"email": "user1@company1.com", "password": "senha123"}
+    response1 = client.post("/auth/token", json=login_data1)
+    assert response1.status_code == 200
+    token1 = response1.json()["access_token"]
+    
+    login_data2 = {"email": "user2@company2.com", "password": "senha123"}
+    response2 = client.post("/auth/token", json=login_data2)
+    assert response2.status_code == 200
+    token2 = response2.json()["access_token"]
+    
+    # Usuário 1 cria um projeto
+    project_data = {"name": "Company 1 Project"}
+    headers1 = {"Authorization": f"Bearer {token1}"}
+    response = client.post("/projects", json=project_data, headers=headers1)
+    assert response.status_code == 201
+    project_id = response.json()["id"]
+    
+    # Usuário 2 tenta atualizar o projeto da empresa 1
+    update_data = {"name": "Hacked Project"}
+    headers2 = {"Authorization": f"Bearer {token2}"}
+    response = client.put(f"/projects/{project_id}", json=update_data, headers=headers2)
+    
+    # Deve retornar 404 para não vazar informação sobre existência do projeto
+    assert response.status_code == 404
+    response_data = response.json()
+    assert "detail" in response_data
+
+
+def test_delete_project_success(client, auth_token):
+    """Teste para verificar a exclusão bem-sucedida de um projeto"""
+    # Criar um projeto primeiro
+    project_data = {
+        "name": "Project to Delete",
+        "address": "Address to Delete",
+        "start_date": "2024-01-15"
+    }
+    
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    response = client.post("/projects", json=project_data, headers=headers)
+    
+    assert response.status_code == 201
+    created_project = response.json()
+    project_id = created_project["id"]
+    
+    # Deletar o projeto
+    response = client.delete(f"/projects/{project_id}", headers=headers)
+    
+    assert response.status_code == 204
+    
+    # Confirmar que o projeto foi deletado fazendo uma requisição GET
+    response = client.get(f"/projects/{project_id}", headers=headers)
+    assert response.status_code == 404
+
+
+def test_delete_project_not_found(client, auth_token):
+    """Teste para verificar resposta 404 ao tentar deletar projeto inexistente"""
+    # Usar um UUID aleatório inexistente
+    nonexistent_id = str(uuid.uuid4())
+    
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    response = client.delete(f"/projects/{nonexistent_id}", headers=headers)
+    
+    assert response.status_code == 404
+    response_data = response.json()
+    assert "detail" in response_data
+
+
+def test_delete_project_wrong_company_fails(client, db_session):
+    """Teste para verificar que usuário de uma empresa não consegue deletar projeto de outra empresa"""
+    # Criar primeira empresa e usuário
+    company1 = Company(
+        name="Company 1",
+        cnpj="11.111.111/0001-11",
+        address="Address 1"
+    )
+    db_session.add(company1)
+    db_session.commit()
+    db_session.refresh(company1)
+    
+    user1 = User(
+        email="user1@company1.com",
+        hashed_password=hash_password("senha123"),
+        full_name="User 1",
+        company_id=company1.id
+    )
+    db_session.add(user1)
+    db_session.commit()
+    
+    # Criar segunda empresa e usuário
+    company2 = Company(
+        name="Company 2",
+        cnpj="22.222.222/0002-22",
+        address="Address 2"
+    )
+    db_session.add(company2)
+    db_session.commit()
+    db_session.refresh(company2)
+    
+    user2 = User(
+        email="user2@company2.com",
+        hashed_password=hash_password("senha123"),
+        full_name="User 2",
+        company_id=company2.id
+    )
+    db_session.add(user2)
+    db_session.commit()
+    
+    # Obter tokens de autenticação para ambos os usuários
+    login_data1 = {"email": "user1@company1.com", "password": "senha123"}
+    response1 = client.post("/auth/token", json=login_data1)
+    assert response1.status_code == 200
+    token1 = response1.json()["access_token"]
+    
+    login_data2 = {"email": "user2@company2.com", "password": "senha123"}
+    response2 = client.post("/auth/token", json=login_data2)
+    assert response2.status_code == 200
+    token2 = response2.json()["access_token"]
+    
+    # Usuário 1 cria um projeto
+    project_data = {"name": "Company 1 Project"}
+    headers1 = {"Authorization": f"Bearer {token1}"}
+    response = client.post("/projects", json=project_data, headers=headers1)
+    assert response.status_code == 201
+    project_id = response.json()["id"]
+    
+    # Usuário 2 tenta deletar o projeto da empresa 1
+    headers2 = {"Authorization": f"Bearer {token2}"}
+    response = client.delete(f"/projects/{project_id}", headers=headers2)
+    
+    # Deve retornar 404 para não vazar informação sobre existência do projeto
+    assert response.status_code == 404
+    response_data = response.json()
+    assert "detail" in response_data

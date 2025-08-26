@@ -20,6 +20,13 @@ class ProjectCreate(ProjectBase):
     pass
 
 
+class ProjectUpdate(BaseModel):
+    """Schema for updating a project."""
+    name: Optional[str] = Field(None, min_length=1, description="Project name")
+    address: Optional[str] = Field(None, description="Project address")
+    start_date: Optional[date] = Field(None, description="Project start date")
+
+
 class ProjectResponse(ProjectBase):
     """Schema for project responses."""
     id: uuid.UUID

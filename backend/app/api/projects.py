@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from backend.app.db import get_db
 from backend.app.db.models.project import Project
 from backend.app.db.models.user import User
-from backend.app.schemas.project import ProjectCreate, ProjectResponse
+from backend.app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse
 from backend.app.dependencies import get_current_user
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
@@ -112,3 +112,95 @@ def get_project_by_id(
         )
     
     return project
+
+
+@router.put("/{project_id}", response_model=ProjectResponse)
+def update_project(
+    project_id: str,
+    project_data: ProjectUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> ProjectResponse:
+    """
+    Update a specific project by ID.
+    
+    Args:
+        project_id: UUID of the project to update
+        project_data: Project update data
+        current_user: Current authenticated user
+        db: Database session
+        
+    Returns:
+        Updated project data
+        
+    Raises:
+        HTTPException: 404 if project not found or doesn't belong to user's company
+    """
+    try:
+        project_uuid = uuid.UUID(project_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found"
+        )
+    
+    project = db.query(Project).filter(
+        Project.id == project_uuid,
+        Project.company_id == current_user.company_id
+    ).first()
+    
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found"
+        )
+    
+    # Update project fields with provided data
+    update_data = project_data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(project, field, value)
+    
+    db.commit()
+    db.refresh(project)
+    
+    return project
+
+
+@router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_project(
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a specific project by ID.
+    
+    Args:
+        project_id: UUID of the project to delete
+        current_user: Current authenticated user
+        db: Database session
+        
+    Raises:
+        HTTPException: 404 if project not found or doesn't belong to user's company
+    """
+    try:
+        project_uuid = uuid.UUID(project_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found"
+        )
+    
+    project = db.query(Project).filter(
+        Project.id == project_uuid,
+        Project.company_id == current_user.company_id
+    ).first()
+    
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found"
+        )
+    
+    db.delete(project)
+    db.commit()
