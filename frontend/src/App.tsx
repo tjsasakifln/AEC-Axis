@@ -4,6 +4,7 @@ import PrivateRoute from './components/private-route'
 import Login from './pages/login'
 import Register from './pages/register'
 import Projects from './pages/projects'
+import ProjectDetail from './pages/project-detail'
 
 function App() {
   return (
@@ -17,6 +18,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Projects />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/projects/:projectId"
+            element={
+              <PrivateRoute>
+                <ProjectDetail />
               </PrivateRoute>
             }
           />

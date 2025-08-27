@@ -4,6 +4,7 @@ IFC File Processing Worker for AEC Axis.
 This module contains the worker logic for processing uploaded IFC files,
 extracting materials data and updating the database.
 """
+import asyncio
 import io
 import os
 import uuid
@@ -19,6 +20,25 @@ from backend.app.db.models.ifc_file import IFCFile
 from backend.app.db.models.material import Material
 
 
+async def _notify_status_update(project_id: str, ifc_file_id: str, status: str, filename: str):
+    """
+    Notify WebSocket clients about IFC file status updates.
+    
+    This function simulates publishing an event. In a production environment,
+    this could be replaced with a message queue or event bus.
+    """
+    try:
+        from backend.app.api.websockets import notify_ifc_status_update
+        await notify_ifc_status_update(
+            project_id=project_id,
+            ifc_file_id=ifc_file_id,
+            status=status,
+            filename=filename
+        )
+    except Exception as e:
+        print(f"Error sending WebSocket notification: {e}")
+
+
 def _get_s3_client():
     """Get configured S3 client."""
     return boto3.client('s3')
@@ -29,7 +49,7 @@ def _get_s3_bucket_name() -> str:
     return os.getenv('AWS_S3_BUCKET_NAME', 'aec-axis-ifc-files')
 
 
-def process_ifc_file(ifc_file_id: uuid.UUID, db: Session) -> None:
+async def process_ifc_file(ifc_file_id: uuid.UUID, db: Session) -> None:
     """
     Process an IFC file and extract materials data.
     
@@ -52,6 +72,14 @@ def process_ifc_file(ifc_file_id: uuid.UUID, db: Session) -> None:
         # Step 2: Update status to PROCESSING
         ifc_file.status = "PROCESSING"
         db.commit()
+        
+        # Notify WebSocket clients about status change
+        await _notify_status_update(
+            project_id=str(ifc_file.project_id),
+            ifc_file_id=str(ifc_file.id),
+            status="PROCESSING",
+            filename=ifc_file.original_filename
+        )
         
         # Step 3: Download file from S3
         s3_client = _get_s3_client()
@@ -143,10 +171,26 @@ def process_ifc_file(ifc_file_id: uuid.UUID, db: Session) -> None:
         ifc_file.status = "COMPLETED"
         db.commit()
         
+        # Notify WebSocket clients about completion
+        await _notify_status_update(
+            project_id=str(ifc_file.project_id),
+            ifc_file_id=str(ifc_file.id),
+            status="COMPLETED",
+            filename=ifc_file.original_filename
+        )
+        
     except Exception as e:
         # If any error occurs, update status to ERROR
         ifc_file.status = "ERROR"
         db.commit()
+        
+        # Notify WebSocket clients about error
+        await _notify_status_update(
+            project_id=str(ifc_file.project_id),
+            ifc_file_id=str(ifc_file.id),
+            status="ERROR",
+            filename=ifc_file.original_filename
+        )
         
         # Re-raise the exception for logging purposes
         raise e
@@ -162,7 +206,7 @@ def _get_sqs_queue_url() -> str:
     return os.getenv('AWS_SQS_QUEUE_URL', 'https://sqs.us-east-1.amazonaws.com/123456789012/aec-axis-ifc-processing')
 
 
-def start_worker_loop() -> None:
+async def start_worker_loop() -> None:
     """
     Start the worker loop to consume SQS messages and process IFC files.
     
@@ -225,8 +269,8 @@ def start_worker_loop() -> None:
                     # Create database session
                     db = SessionLocal()
                     try:
-                        # Call process_ifc_file function
-                        process_ifc_file(ifc_file_id, db)
+                        # Call async process_ifc_file function
+                        await process_ifc_file(ifc_file_id, db)
                         
                         # Delete message from queue after successful processing
                         sqs_client.delete_message(
@@ -274,4 +318,4 @@ if __name__ == "__main__":
     
     Usage: python -m backend.app.worker
     """
-    start_worker_loop()
+    asyncio.run(start_worker_loop())

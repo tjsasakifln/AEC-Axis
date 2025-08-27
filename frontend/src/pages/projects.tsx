@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
 import { projectsApi, Project, CreateProjectRequest } from '../services/api'
 
@@ -8,6 +9,7 @@ function Projects() {
   const [error, setError] = useState('')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const { user, logout } = useAuth()
+  const navigate = useNavigate()
 
   useEffect(() => {
     loadProjects()
@@ -98,6 +100,7 @@ function Projects() {
                   <button
                     className="btn btn-secondary"
                     style={{ fontSize: '12px', padding: '5px 10px' }}
+                    onClick={() => navigate(`/projects/${project.id}`)}
                   >
                     Ver Detalhes
                   </button>

@@ -29,6 +29,30 @@ export interface CreateProjectRequest {
   start_date?: string
 }
 
+export interface IFCFile {
+  id: string
+  filename: string
+  file_size: number
+  upload_date: string
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'ERROR'
+  s3_key?: string
+}
+
+export interface Material {
+  id: string
+  description: string
+  quantity: number
+  unit: string
+  ifc_file_id: string
+  created_at: string
+}
+
+export interface UpdateMaterialRequest {
+  description?: string
+  quantity?: number
+  unit?: string
+}
+
 export const projectsApi = {
   getAll: async (): Promise<Project[]> => {
     const response = await api.get('/projects')
@@ -43,6 +67,41 @@ export const projectsApi = {
   getById: async (id: string): Promise<Project> => {
     const response = await api.get(`/projects/${id}`)
     return response.data
+  }
+}
+
+export const ifcFilesApi = {
+  getByProjectId: async (projectId: string): Promise<IFCFile[]> => {
+    const response = await api.get(`/projects/${projectId}/ifc-files`)
+    return response.data
+  },
+
+  upload: async (projectId: string, file: File): Promise<IFCFile> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    const response = await api.post(`/projects/${projectId}/ifc-files`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    return response.data
+  }
+}
+
+export const materialsApi = {
+  getByIFCFileId: async (ifcFileId: string): Promise<Material[]> => {
+    const response = await api.get(`/ifc-files/${ifcFileId}/materials`)
+    return response.data
+  },
+
+  update: async (materialId: string, data: UpdateMaterialRequest): Promise<Material> => {
+    const response = await api.put(`/materials/${materialId}`, data)
+    return response.data
+  },
+
+  delete: async (materialId: string): Promise<void> => {
+    await api.delete(`/materials/${materialId}`)
   }
 }
 

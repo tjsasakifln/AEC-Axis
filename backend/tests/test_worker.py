@@ -3,8 +3,9 @@ Tests for IFC file processing worker functionality.
 """
 import pytest
 import uuid
+import asyncio
 from unittest import mock
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 from pathlib import Path
 
 from backend.app.db.models.company import Company
@@ -82,8 +83,10 @@ def sample_ifc_content():
         return f.read()
 
 
+@patch('backend.app.worker._notify_status_update', new_callable=AsyncMock)
 @patch('backend.app.worker.boto3.client')
-def test_process_ifc_file_success(mock_boto3_client, db_session, test_ifc_file, sample_ifc_content):
+@pytest.mark.asyncio
+async def test_process_ifc_file_success(mock_boto3_client, mock_notify, db_session, test_ifc_file, sample_ifc_content):
     """Test successful IFC file processing"""
     # Setup S3 mock
     mock_s3_client = MagicMock()
@@ -105,7 +108,7 @@ def test_process_ifc_file_success(mock_boto3_client, db_session, test_ifc_file, 
     mock_s3_client.download_fileobj.side_effect = mock_download_fileobj
     
     # Call the worker function
-    process_ifc_file(test_ifc_file.id, db_session)
+    await process_ifc_file(test_ifc_file.id, db_session)
     
     # Verify S3 download_fileobj was called
     mock_s3_client.download_fileobj.assert_called_once()
@@ -126,11 +129,29 @@ def test_process_ifc_file_success(mock_boto3_client, db_session, test_ifc_file, 
         assert material.quantity is not None
         assert material.unit is not None
         assert material.ifc_file_id == test_ifc_file.id
+    
+    # Verify WebSocket notifications were sent
+    assert mock_notify.call_count == 2  # PROCESSING and COMPLETED
+    
+    # Verify PROCESSING notification
+    processing_call = mock_notify.call_args_list[0]
+    assert processing_call[1]['status'] == 'PROCESSING'
+    assert processing_call[1]['project_id'] == str(test_ifc_file.project_id)
+    assert processing_call[1]['ifc_file_id'] == str(test_ifc_file.id)
+    assert processing_call[1]['filename'] == test_ifc_file.original_filename
+    
+    # Verify COMPLETED notification
+    completed_call = mock_notify.call_args_list[1]
+    assert completed_call[1]['status'] == 'COMPLETED'
+    assert completed_call[1]['project_id'] == str(test_ifc_file.project_id)
+    assert completed_call[1]['ifc_file_id'] == str(test_ifc_file.id)
+    assert completed_call[1]['filename'] == test_ifc_file.original_filename
 
 
-@patch('backend.app.worker.process_ifc_file')
+@patch('backend.app.worker.process_ifc_file', new_callable=AsyncMock)
 @patch('backend.app.worker.boto3.client')
-def test_start_worker_loop_calls_processor(mock_boto3_client, mock_process_ifc_file, db_session, test_ifc_file):
+@pytest.mark.asyncio
+async def test_start_worker_loop_calls_processor(mock_boto3_client, mock_process_ifc_file, db_session, test_ifc_file):
     """Test that the worker loop consumes SQS messages and calls process_ifc_file"""
     # Setup SQS mock
     mock_sqs_client = MagicMock()
@@ -163,7 +184,7 @@ def test_start_worker_loop_calls_processor(mock_boto3_client, mock_process_ifc_f
     ]
     
     # Call the worker loop function
-    start_worker_loop()
+    await start_worker_loop()
     
     # Verify process_ifc_file was called exactly once with the correct ifc_file_id
     mock_process_ifc_file.assert_called_once_with(test_ifc_file.id, mock.ANY)
@@ -176,3 +197,66 @@ def test_start_worker_loop_calls_processor(mock_boto3_client, mock_process_ifc_f
         QueueUrl=mock.ANY,
         ReceiptHandle='test-receipt-handle-123'
     )
+
+
+@patch('backend.app.worker._notify_status_update', new_callable=AsyncMock)
+@patch('backend.app.worker.boto3.client')
+@pytest.mark.asyncio
+async def test_process_ifc_file_error_notification(mock_boto3_client, mock_notify, db_session, test_ifc_file):
+    """Test that WebSocket notifications are sent when IFC processing fails"""
+    # Setup S3 mock to raise an exception
+    mock_s3_client = MagicMock()
+    mock_s3_client.download_fileobj.side_effect = Exception("S3 download failed")
+    
+    def boto3_client_side_effect(service_name):
+        if service_name == 's3':
+            return mock_s3_client
+        return MagicMock()
+    
+    mock_boto3_client.side_effect = boto3_client_side_effect
+    
+    # Verify the function raises an exception
+    with pytest.raises(Exception, match="S3 download failed"):
+        await process_ifc_file(test_ifc_file.id, db_session)
+    
+    # Refresh the IFC file from database
+    db_session.refresh(test_ifc_file)
+    
+    # Verify status was updated to ERROR
+    assert test_ifc_file.status == "ERROR"
+    
+    # Verify WebSocket notifications were sent
+    assert mock_notify.call_count == 2  # PROCESSING and ERROR
+    
+    # Verify PROCESSING notification
+    processing_call = mock_notify.call_args_list[0]
+    assert processing_call[1]['status'] == 'PROCESSING'
+    
+    # Verify ERROR notification
+    error_call = mock_notify.call_args_list[1]
+    assert error_call[1]['status'] == 'ERROR'
+    assert error_call[1]['project_id'] == str(test_ifc_file.project_id)
+    assert error_call[1]['ifc_file_id'] == str(test_ifc_file.id)
+    assert error_call[1]['filename'] == test_ifc_file.original_filename
+
+
+@pytest.mark.asyncio
+async def test_notify_status_update_function():
+    """Test the WebSocket notification function"""
+    with patch('backend.app.api.websockets.notify_ifc_status_update', new_callable=AsyncMock) as mock_notify:
+        from backend.app.worker import _notify_status_update
+        
+        await _notify_status_update(
+            project_id="test-project-id",
+            ifc_file_id="test-file-id", 
+            status="COMPLETED",
+            filename="test.ifc"
+        )
+        
+        # Verify the notification function was called with correct parameters
+        mock_notify.assert_called_once_with(
+            project_id="test-project-id",
+            ifc_file_id="test-file-id",
+            status="COMPLETED",
+            filename="test.ifc"
+        )
