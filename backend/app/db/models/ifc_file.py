@@ -36,5 +36,8 @@ class IFCFile(Base):
     # Relationship to Project
     project = relationship("Project", back_populates="ifc_files")
     
+    # Relationship to Materials
+    materials = relationship("Material", back_populates="ifc_file")
+    
     def __repr__(self) -> str:
         return f"<IFCFile(id={self.id}, filename='{self.original_filename}', status='{self.status}', project_id={self.project_id})>"
