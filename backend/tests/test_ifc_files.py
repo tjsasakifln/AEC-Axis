@@ -1,6 +1,8 @@
 import pytest
 import uuid
+import os
 from io import BytesIO
+from pathlib import Path
 from backend.app.db.models.user import User
 from backend.app.db.models.company import Company
 from backend.app.security import hash_password
@@ -119,6 +121,22 @@ def test_upload_ifc_file_success(client, auth_token, test_project, ifc_file_cont
     assert response_data["original_filename"] == "test.ifc"
     assert response_data["status"] == "PENDING"
     assert response_data["project_id"] == project_id
+    
+    # Verificar se o arquivo foi salvo fisicamente
+    file_path = response_data.get("file_path")
+    assert file_path is not None
+    assert os.path.exists(file_path)
+    assert file_path.endswith(".ifc")
+    assert "backend" in file_path and "uploads" in file_path
+    
+    # Verificar se o conteúdo do arquivo salvo é correto
+    with open(file_path, "rb") as saved_file:
+        saved_content = saved_file.read()
+        assert saved_content == ifc_file_content
+    
+    # Limpar arquivo de teste
+    if os.path.exists(file_path):
+        os.remove(file_path)
 
 
 def test_upload_invalid_file_type_fails(client, auth_token, test_project, txt_file_content):

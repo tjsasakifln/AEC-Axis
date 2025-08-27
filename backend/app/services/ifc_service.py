@@ -3,6 +3,10 @@ IFC File service for AEC Axis.
 
 This module contains business logic for IFC file processing and management.
 """
+import os
+import uuid
+from pathlib import Path
+
 from fastapi import HTTPException, status, UploadFile
 from sqlalchemy.orm import Session
 
@@ -32,12 +36,31 @@ def process_ifc_upload(db: Session, project: Project, file: UploadFile) -> IFCFi
             detail="Only IFC files are allowed"
         )
     
+    # Generate unique filename
+    unique_filename = f"{uuid.uuid4()}.ifc"
+    
+    # Define upload path
+    upload_dir = Path("backend/uploads")
+    upload_dir.mkdir(exist_ok=True)
+    file_path = upload_dir / unique_filename
+    
+    # Save file to disk
+    try:
+        with open(file_path, "wb") as buffer:
+            content = file.file.read()
+            buffer.write(content)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error saving file: {str(e)}"
+        )
+    
     # Create IFC file record in database
     db_ifc_file = IFCFile(
         original_filename=file.filename,
         status="PENDING",
         project_id=project.id,
-        file_path=None  # Will be set after file is saved to storage
+        file_path=str(file_path)
     )
     
     # Add to database

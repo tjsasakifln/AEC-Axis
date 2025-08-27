@@ -148,3 +148,6 @@ Thumbs.db
 # Node.js (for future frontend)
 node_modules/
 .npm
+
+# Uploads directory
+backend/uploads/
