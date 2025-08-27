@@ -8,11 +8,14 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from jose import JWTError, jwt
+import uuid
 
 from app.db import get_db
 from app.db.models.user import User
-from app.security import verify_password
+from app.db.models.company import Company
+from app.security import verify_password, hash_password
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -33,6 +36,14 @@ class TokenResponse(BaseModel):
     """Response model for token endpoint."""
     access_token: str
     token_type: str
+
+
+class RegisterRequest(BaseModel):
+    """Request model for user registration."""
+    email: EmailStr
+    password: str
+    company_name: str
+    cnpj: str
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -112,5 +123,90 @@ def login_for_access_token(
         access_token=access_token,
         token_type="bearer"
     )
+
+
+@router.post("/register", response_model=TokenResponse)
+def register_user(
+    register_data: RegisterRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Register a new user and company.
+    
+    Args:
+        register_data: Registration data (email, password, company info)
+        db: Database session
+        
+    Returns:
+        Access token for the newly created user
+        
+    Raises:
+        HTTPException: If registration fails
+    """
+    try:
+        # Check if user already exists
+        existing_user = db.query(User).filter(User.email == register_data.email).first()
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+        
+        # Check if company with this CNPJ already exists
+        existing_company = db.query(Company).filter(Company.cnpj == register_data.cnpj).first()
+        if existing_company:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Company with this CNPJ already exists"
+            )
+        
+        # Create new company
+        company = Company(
+            id=str(uuid.uuid4()),
+            name=register_data.company_name,
+            cnpj=register_data.cnpj
+        )
+        db.add(company)
+        db.flush()  # To get the company ID
+        
+        # Create new user
+        hashed_password = hash_password(register_data.password)
+        user = User(
+            id=str(uuid.uuid4()),
+            email=register_data.email,
+            full_name=register_data.email.split('@')[0],  # Use email prefix as name
+            hashed_password=hashed_password,
+            company_id=company.id,
+            is_active=True
+        )
+        
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        
+        # Create access token
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": str(user.id)},
+            expires_delta=access_token_expires
+        )
+        
+        return TokenResponse(
+            access_token=access_token,
+            token_type="bearer"
+        )
+        
+    except IntegrityError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Registration failed due to data conflict"
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error during registration"
+        )
 
 

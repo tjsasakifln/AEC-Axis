@@ -6,7 +6,6 @@ Companies are the client organizations that use the AEC Axis platform.
 """
 import uuid
 from sqlalchemy import Column, Integer, String, DateTime, func
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -21,7 +20,7 @@ class Company(Base):
     """
     __tablename__ = "companies"
     
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
     name = Column(String, nullable=False, index=True)
     cnpj = Column(String(18), unique=True, nullable=False, index=True)
     email = Column(String, nullable=True)
@@ -29,8 +28,8 @@ class Company(Base):
     phone = Column(String, nullable=True)
     
     # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
     
     # Relationships
     users = relationship("User", back_populates="company")

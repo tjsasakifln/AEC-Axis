@@ -8,7 +8,7 @@ import os
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://localhost:5432/aec_axis"
+    "sqlite:///./aec_axis.db"
 )
 
 engine = create_engine(DATABASE_URL)

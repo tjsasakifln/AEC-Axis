@@ -4,6 +4,7 @@ Users API endpoints.
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+import uuid
 
 from app.db import get_db
 from app.db.models import User, Company
@@ -45,6 +46,7 @@ def register_user(
         
         # Create new user instance
         db_user = User(
+            id=str(uuid.uuid4()),
             email=user_data.email,
             full_name=user_data.full_name,
             hashed_password=hashed_password,

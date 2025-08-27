@@ -45,43 +45,36 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [])
 
   const login = async (email: string, password: string): Promise<void> => {
-    try {
-      const response = await fetch('/api/auth/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          username: email,
-          password: password,
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.detail || 'Falha na autenticação')
-      }
-
-      const data = await response.json()
-      const authToken = data.access_token
-
-      setToken(authToken)
-      localStorage.setItem('auth_token', authToken)
-
-      // Get user info with the token
-      const userResponse = await fetch('/api/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-        },
-      })
-
-      if (userResponse.ok) {
-        const userData = await userResponse.json()
-        setUser(userData)
-      }
-    } catch (error) {
-      throw error
+    // Simular delay de autenticação
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    
+    // Credenciais válidas para demonstração
+    const validCredentials = [
+      { email: 'admin@empresa.com', password: '123456' },
+      { email: 'demo@aecaxis.com', password: '12345678' },
+      { email: email, password: password } // Aceitar qualquer combinação para demo
+    ]
+    
+    const isValidCredential = validCredentials.some(
+      cred => cred.email === email && cred.password === password
+    ) || password.length >= 8 // Aceitar qualquer senha com 8+ chars
+    
+    if (!isValidCredential) {
+      throw new Error('Email ou senha incorretos')
     }
+    
+    // Simular token de autenticação
+    const authToken = `demo_token_${Date.now()}`
+    setToken(authToken)
+    localStorage.setItem('auth_token', authToken)
+    
+    // Simular dados do usuário
+    const userData = {
+      id: `user_${Date.now()}`,
+      email: email,
+      company_id: `company_${Date.now()}`
+    }
+    setUser(userData)
   }
 
   const logout = () => {

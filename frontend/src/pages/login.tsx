@@ -28,10 +28,13 @@ function Login() {
   }
 
   return (
-    <div className="container">
-      <div style={{ maxWidth: '400px', margin: '100px auto', padding: '20px' }}>
-        <h1>AEC Axis</h1>
-        <h2>Entrar na sua conta</h2>
+    <div className="auth-container">
+      <div className="auth-card">
+        <div className="auth-header">
+          <h1>AEC Axis</h1>
+          <h2>Bem-vindo de volta</h2>
+          <p className="auth-subtitle">Entre na sua conta para continuar</p>
+        </div>
         
         {error && <div className="error-message">{error}</div>}
         
@@ -46,6 +49,7 @@ function Login() {
               className="form-input"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              placeholder="seu@email.com"
               required
             />
           </div>
@@ -60,6 +64,7 @@ function Login() {
               className="form-input"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              placeholder="Sua senha"
               required
             />
           </div>
@@ -68,16 +73,25 @@ function Login() {
             type="submit"
             className="btn"
             disabled={isSubmitting}
-            style={{ width: '100%', marginBottom: '15px' }}
+            style={{ width: '100%', marginBottom: '24px' }}
           >
-            {isSubmitting ? 'Entrando...' : 'Entrar'}
+            {isSubmitting ? (
+              <>
+                <span className="loading"></span>
+                <span style={{ marginLeft: '8px' }}>Entrando...</span>
+              </>
+            ) : (
+              'Entrar'
+            )}
           </button>
         </form>
         
-        <p style={{ textAlign: 'center' }}>
+        <div className="divider">ou</div>
+        
+        <p style={{ textAlign: 'center', color: '#718096' }}>
           Não tem uma conta?{' '}
-          <Link to="/register" style={{ color: '#007bff' }}>
-            Registrar-se
+          <Link to="/register" className="auth-link">
+            Criar conta
           </Link>
         </p>
       </div>

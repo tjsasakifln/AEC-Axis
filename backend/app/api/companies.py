@@ -4,6 +4,7 @@ Companies API endpoints.
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+import uuid
 
 from app.db import get_db
 from app.db.models import Company
@@ -33,6 +34,7 @@ def create_company(
     try:
         # Create new company instance
         db_company = Company(
+            id=str(uuid.uuid4()),
             name=company_data.name,
             cnpj=company_data.cnpj,
             email=company_data.email,

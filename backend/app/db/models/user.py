@@ -6,7 +6,6 @@ Users are the individuals who use the AEC Axis platform and are associated with 
 """
 import uuid
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, func
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -21,18 +20,18 @@ class User(Base):
     """
     __tablename__ = "users"
     
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
     email = Column(String, unique=True, nullable=False, index=True)
     full_name = Column(String, nullable=False)
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     
     # Foreign key to companies table
-    company_id = Column(PG_UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False, index=True)
+    company_id = Column(String, ForeignKey("companies.id"), nullable=False, index=True)
     
     # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
     
     # Relationship to Company
     company = relationship("Company", back_populates="users")
