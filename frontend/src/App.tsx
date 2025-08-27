@@ -5,6 +5,7 @@ import Login from './pages/login'
 import Register from './pages/register'
 import Projects from './pages/projects'
 import ProjectDetail from './pages/project-detail'
+import QuoteSubmission from './pages/quote-submission'
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/quotes/:token" element={<QuoteSubmission />} />
           <Route
             path="/projects"
             element={

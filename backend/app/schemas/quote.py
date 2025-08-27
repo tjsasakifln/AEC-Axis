@@ -3,7 +3,7 @@ Pydantic schemas for Quote endpoints.
 """
 import uuid
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 from decimal import Decimal
 
 from pydantic import BaseModel, Field
@@ -44,3 +44,26 @@ class QuoteResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+class ProjectInfo(BaseModel):
+    """Schema for project information in quote details."""
+    id: uuid.UUID
+    name: str
+    address: Optional[str] = None
+
+
+class MaterialInfo(BaseModel):
+    """Schema for material information in quote details."""
+    id: uuid.UUID
+    rfq_item_id: uuid.UUID
+    description: str
+    quantity: Decimal
+    unit: str
+
+
+class QuoteDetailsResponse(BaseModel):
+    """Schema for quote details responses (GET endpoint)."""
+    rfq_id: uuid.UUID
+    project: ProjectInfo
+    materials: List[MaterialInfo]

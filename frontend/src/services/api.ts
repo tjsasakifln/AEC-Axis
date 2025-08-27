@@ -68,6 +68,43 @@ export interface CreateRFQRequest {
   supplier_ids: string[]
 }
 
+export interface ProjectInfo {
+  id: string
+  name: string
+  address?: string
+}
+
+export interface MaterialInfo {
+  id: string
+  rfq_item_id: string
+  description: string
+  quantity: number
+  unit: string
+}
+
+export interface QuoteDetails {
+  rfq_id: string
+  project: ProjectInfo
+  materials: MaterialInfo[]
+}
+
+export interface QuoteItemSubmission {
+  rfq_item_id: string
+  price: number
+  lead_time_days: number
+}
+
+export interface QuoteSubmissionRequest {
+  items: QuoteItemSubmission[]
+}
+
+export interface QuoteSubmissionResponse {
+  id: string
+  rfq_id: string
+  supplier_id: string
+  submitted_at: string
+}
+
 export const projectsApi = {
   getAll: async (): Promise<Project[]> => {
     const response = await api.get('/projects')
@@ -130,6 +167,18 @@ export const suppliersApi = {
 export const rfqsApi = {
   create: async (data: CreateRFQRequest): Promise<void> => {
     await api.post('/rfqs', data)
+  }
+}
+
+export const quotesApi = {
+  getDetails: async (token: string): Promise<QuoteDetails> => {
+    const response = await axios.get(`${API_BASE_URL}/quotes/${token}`)
+    return response.data
+  },
+
+  submit: async (token: string, data: QuoteSubmissionRequest): Promise<QuoteSubmissionResponse> => {
+    const response = await axios.post(`${API_BASE_URL}/quotes/${token}`, data)
+    return response.data
   }
 }
 

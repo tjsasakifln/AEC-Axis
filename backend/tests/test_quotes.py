@@ -350,3 +350,102 @@ def test_submit_quote_cannot_be_used_twice_fails(client, db_session, test_rfq_wi
         Quote.access_token_jti == decoded_token["jti"]
     ).all()
     assert len(quotes_with_jti) == 1
+
+
+def test_get_quote_details_success(client, db_session, test_rfq_with_items, valid_quote_token):
+    """
+    Teste a visualização bem-sucedida dos detalhes do RFQ usando um token JWT válido.
+    Verifique se a resposta é 200 OK e se o corpo da resposta contém os detalhes 
+    corretos do RFQ (nome do projeto e lista de materiais solicitados).
+    """
+    # Fazer a requisição GET
+    response = client.get(f"/quotes/{valid_quote_token}")
+    
+    # Verificar se a resposta é 200 OK
+    assert response.status_code == 200
+    response_data = response.json()
+    
+    # Verificar se os dados básicos do RFQ estão corretos
+    assert "rfq_id" in response_data
+    assert "project" in response_data
+    assert "materials" in response_data
+    
+    # Verificar dados do projeto
+    project_data = response_data["project"]
+    assert project_data["name"] == "Test Project"
+    assert project_data["address"] == "123 Test Street"
+    
+    # Verificar dados dos materiais
+    materials_data = response_data["materials"]
+    assert len(materials_data) == 2
+    
+    # Verificar material 1
+    material1 = next(m for m in materials_data if m["description"] == "Concrete C25/30")
+    assert float(material1["quantity"]) == 150.5
+    assert material1["unit"] == "m³"
+    assert "rfq_item_id" in material1
+    
+    # Verificar material 2
+    material2 = next(m for m in materials_data if m["description"] == "Steel Rebar Ø12mm")
+    assert float(material2["quantity"]) == 2500.0
+    assert material2["unit"] == "kg"
+    assert "rfq_item_id" in material2
+
+
+def test_get_quote_details_with_invalid_token_fails(client, test_rfq_with_items):
+    """
+    Teste a visualização com um token JWT inválido ou expirado.
+    Verifique se a resposta é 401 Unauthorized.
+    """
+    # Testar com token inválido
+    invalid_token = "invalid_token_here"
+    response = client.get(f"/quotes/{invalid_token}")
+    
+    # Verificar se a resposta é 401 Unauthorized
+    assert response.status_code == 401
+    response_data = response.json()
+    assert "detail" in response_data
+
+
+def test_get_quote_details_with_expired_token_fails(client, test_rfq_with_items, expired_quote_token):
+    """
+    Teste a visualização com um token JWT expirado.
+    Verifique se a resposta é 401 Unauthorized.
+    """
+    # Fazer a requisição GET com token expirado
+    response = client.get(f"/quotes/{expired_quote_token}")
+    
+    # Verificar se a resposta é 401 Unauthorized
+    assert response.status_code == 401
+    response_data = response.json()
+    assert "detail" in response_data
+
+
+def test_get_quote_details_for_already_submitted_quote_fails(client, db_session, test_rfq_with_items, valid_quote_token):
+    """
+    Teste que simula uma submissão de cotação bem-sucedida e, em seguida, 
+    tenta usar o mesmo token para fazer uma chamada GET. Verifique se a resposta 
+    é 403 Forbidden, pois o link já foi utilizado.
+    """
+    # Primeiro, submeter uma cotação com sucesso
+    quote_data = {
+        "items": [
+            {
+                "rfq_item_id": str(test_rfq_with_items["rfq_items"][0].id),
+                "price": 150.00,
+                "lead_time_days": 15
+            }
+        ]
+    }
+    
+    # Fazer a submissão da cotação
+    submit_response = client.post(f"/quotes/{valid_quote_token}", json=quote_data)
+    assert submit_response.status_code == 200
+    
+    # Agora tentar visualizar os detalhes com o mesmo token (já usado)
+    get_response = client.get(f"/quotes/{valid_quote_token}")
+    
+    # Verificar se a resposta é 403 Forbidden
+    assert get_response.status_code == 403
+    response_data = get_response.json()
+    assert "detail" in response_data

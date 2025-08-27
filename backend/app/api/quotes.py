@@ -12,10 +12,94 @@ from app.db import get_db
 from app.db.models.quote import Quote, QuoteItem
 from app.db.models.rfq import RFQ, RFQItem
 from app.db.models.supplier import Supplier
-from app.schemas.quote import QuoteCreate, QuoteResponse
+from app.db.models.project import Project
+from app.db.models.material import Material
+from app.schemas.quote import QuoteCreate, QuoteResponse, QuoteDetailsResponse, ProjectInfo, MaterialInfo
 from app.services.rfq_service import verify_supplier_quote_token
 
 router = APIRouter(prefix="/quotes", tags=["Quotes"])
+
+
+@router.get("/{token}", response_model=QuoteDetailsResponse, status_code=status.HTTP_200_OK)
+async def get_quote_details(
+    token: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Get RFQ details using a secure JWT token for quote submission.
+    
+    Args:
+        token: JWT token containing RFQ and supplier information
+        db: Database session
+        
+    Returns:
+        RFQ details including project and materials information
+        
+    Raises:
+        HTTPException: 401 if token is invalid/expired, 403 if token already used, 404 if RFQ not found
+    """
+    try:
+        # Verify and decode the JWT token
+        payload = verify_supplier_quote_token(token)
+        
+        rfq_id = uuid.UUID(payload["rfq_id"])
+        supplier_id = uuid.UUID(payload["supplier_id"])
+        jti = payload["jti"]
+        
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token"
+        )
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token format"
+        )
+    
+    # Check if token has already been used (one-time use)
+    existing_quote = db.query(Quote).filter(Quote.access_token_jti == jti).first()
+    if existing_quote:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Token has already been used"
+        )
+    
+    # Get RFQ with project information
+    rfq = db.query(RFQ).join(Project).filter(RFQ.id == rfq_id).first()
+    if not rfq:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="RFQ not found"
+        )
+    
+    # Get RFQ items with materials
+    rfq_items = db.query(RFQItem).join(Material).filter(RFQItem.rfq_id == rfq_id).all()
+    
+    # Build project info
+    project_info = ProjectInfo(
+        id=rfq.project.id,
+        name=rfq.project.name,
+        address=rfq.project.address
+    )
+    
+    # Build materials info
+    materials_info = [
+        MaterialInfo(
+            id=rfq_item.material.id,
+            rfq_item_id=rfq_item.id,
+            description=rfq_item.material.description,
+            quantity=rfq_item.material.quantity,
+            unit=rfq_item.material.unit
+        )
+        for rfq_item in rfq_items
+    ]
+    
+    return QuoteDetailsResponse(
+        rfq_id=rfq_id,
+        project=project_info,
+        materials=materials_info
+    )
 
 
 @router.post("/{token}", response_model=QuoteResponse, status_code=status.HTTP_200_OK)
