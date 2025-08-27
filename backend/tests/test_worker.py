@@ -8,13 +8,13 @@ from unittest import mock
 from unittest.mock import patch, MagicMock, AsyncMock
 from pathlib import Path
 
-from backend.app.db.models.company import Company
-from backend.app.db.models.user import User
-from backend.app.db.models.project import Project
-from backend.app.db.models.ifc_file import IFCFile
-from backend.app.db.models.material import Material
-from backend.app.worker import process_ifc_file, start_worker_loop
-from backend.app.security import hash_password
+from app.db.models.company import Company
+from app.db.models.user import User
+from app.db.models.project import Project
+from app.db.models.ifc_file import IFCFile
+from app.db.models.material import Material
+from app.worker import process_ifc_file, start_worker_loop
+from app.security import hash_password
 
 
 @pytest.fixture
@@ -83,8 +83,8 @@ def sample_ifc_content():
         return f.read()
 
 
-@patch('backend.app.worker._notify_status_update', new_callable=AsyncMock)
-@patch('backend.app.worker.boto3.client')
+@patch('app.worker._notify_status_update', new_callable=AsyncMock)
+@patch('app.worker.boto3.client')
 @pytest.mark.asyncio
 async def test_process_ifc_file_success(mock_boto3_client, mock_notify, db_session, test_ifc_file, sample_ifc_content):
     """Test successful IFC file processing"""
@@ -148,8 +148,8 @@ async def test_process_ifc_file_success(mock_boto3_client, mock_notify, db_sessi
     assert completed_call[1]['filename'] == test_ifc_file.original_filename
 
 
-@patch('backend.app.worker.process_ifc_file', new_callable=AsyncMock)
-@patch('backend.app.worker.boto3.client')
+@patch('app.worker.process_ifc_file', new_callable=AsyncMock)
+@patch('app.worker.boto3.client')
 @pytest.mark.asyncio
 async def test_start_worker_loop_calls_processor(mock_boto3_client, mock_process_ifc_file, db_session, test_ifc_file):
     """Test that the worker loop consumes SQS messages and calls process_ifc_file"""
@@ -199,8 +199,8 @@ async def test_start_worker_loop_calls_processor(mock_boto3_client, mock_process
     )
 
 
-@patch('backend.app.worker._notify_status_update', new_callable=AsyncMock)
-@patch('backend.app.worker.boto3.client')
+@patch('app.worker._notify_status_update', new_callable=AsyncMock)
+@patch('app.worker.boto3.client')
 @pytest.mark.asyncio
 async def test_process_ifc_file_error_notification(mock_boto3_client, mock_notify, db_session, test_ifc_file):
     """Test that WebSocket notifications are sent when IFC processing fails"""
@@ -243,8 +243,8 @@ async def test_process_ifc_file_error_notification(mock_boto3_client, mock_notif
 @pytest.mark.asyncio
 async def test_notify_status_update_function():
     """Test the WebSocket notification function"""
-    with patch('backend.app.api.websockets.notify_ifc_status_update', new_callable=AsyncMock) as mock_notify:
-        from backend.app.worker import _notify_status_update
+    with patch('app.api.websockets.notify_ifc_status_update', new_callable=AsyncMock) as mock_notify:
+        from app.worker import _notify_status_update
         
         await _notify_status_update(
             project_id="test-project-id",

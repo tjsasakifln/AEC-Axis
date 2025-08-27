@@ -53,6 +53,21 @@ export interface UpdateMaterialRequest {
   unit?: string
 }
 
+export interface Supplier {
+  id: string
+  name: string
+  email: string
+  phone?: string
+  address?: string
+  created_at: string
+}
+
+export interface CreateRFQRequest {
+  project_id: string
+  material_ids: string[]
+  supplier_ids: string[]
+}
+
 export const projectsApi = {
   getAll: async (): Promise<Project[]> => {
     const response = await api.get('/projects')
@@ -102,6 +117,19 @@ export const materialsApi = {
 
   delete: async (materialId: string): Promise<void> => {
     await api.delete(`/materials/${materialId}`)
+  }
+}
+
+export const suppliersApi = {
+  getAll: async (): Promise<Supplier[]> => {
+    const response = await api.get('/suppliers')
+    return response.data
+  }
+}
+
+export const rfqsApi = {
+  create: async (data: CreateRFQRequest): Promise<void> => {
+    await api.post('/rfqs', data)
   }
 }
 

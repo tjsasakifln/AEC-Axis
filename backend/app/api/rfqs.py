@@ -7,21 +7,23 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from backend.app.db import get_db
-from backend.app.db.models.user import User
-from backend.app.db.models.project import Project
-from backend.app.db.models.material import Material
-from backend.app.db.models.supplier import Supplier
-from backend.app.db.models.ifc_file import IFCFile
-from backend.app.db.models.rfq import RFQ, RFQItem
-from backend.app.schemas.rfq import RFQCreate, RFQResponse
-from backend.app.dependencies import get_current_user
+from app.db import get_db
+from app.db.models.user import User
+from app.db.models.project import Project
+from app.db.models.material import Material
+from app.db.models.supplier import Supplier
+from app.db.models.ifc_file import IFCFile
+from app.db.models.rfq import RFQ, RFQItem
+from app.schemas.rfq import RFQCreate, RFQResponse
+from app.dependencies import get_current_user
+from app.services.rfq_service import generate_supplier_quote_link
+from app.services import email_service
 
 router = APIRouter(prefix="/rfqs", tags=["RFQs"])
 
 
 @router.post("/", response_model=RFQResponse, status_code=status.HTTP_201_CREATED)
-def create_rfq(
+async def create_rfq(
     rfq_data: RFQCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -103,5 +105,28 @@ def create_rfq(
         db.refresh(item)
     
     db.refresh(db_rfq)
+    
+    # Generate and send emails to suppliers
+    email_data_list = []
+    for supplier in suppliers:
+        # Generate secure JWT token for this supplier
+        quote_token = generate_supplier_quote_link(str(db_rfq.id), str(supplier.id))
+        
+        # Prepare email data
+        email_data = {
+            "supplier_email": supplier.email,
+            "supplier_name": supplier.name,
+            "quote_link": quote_token,
+            "project_name": project.name
+        }
+        email_data_list.append(email_data)
+    
+    # Send emails (this will be mocked in tests)
+    try:
+        await email_service.send_rfq_emails_batch(email_data_list)
+    except Exception as e:
+        # Log error but don't fail the RFQ creation
+        # The RFQ has already been created successfully
+        print(f"Warning: Failed to send some RFQ emails: {e}")
     
     return db_rfq

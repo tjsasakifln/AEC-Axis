@@ -9,7 +9,7 @@ from sqlalchemy import Column, String, Numeric, DateTime, ForeignKey, func
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import relationship
 
-from backend.app.db.base import Base
+from app.db.base import Base
 
 
 class Material(Base):

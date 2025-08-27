@@ -10,9 +10,9 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
 
-from backend.app.db import get_db
-from backend.app.db.models.user import User
-from backend.app.security import verify_password
+from app.db import get_db
+from app.db.models.user import User
+from app.security import verify_password
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 

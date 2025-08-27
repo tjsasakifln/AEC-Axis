@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from backend.app.db.base import Base, get_db
+from app.db.base import Base, get_db
 
 
 # Test database URL - using SQLite for tests
@@ -49,7 +49,7 @@ def client(db_session):
     """
     Create a test client with database override.
     """
-    from backend.app.main import app
+    from app.main import app
     
     app.dependency_overrides[get_db] = override_get_db
     

@@ -9,11 +9,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
-from backend.app.db import get_db
-from backend.app.db.models.supplier import Supplier
-from backend.app.db.models.user import User
-from backend.app.schemas.supplier import SupplierCreate, SupplierUpdate, SupplierResponse
-from backend.app.dependencies import get_current_user
+from app.db import get_db
+from app.db.models.supplier import Supplier
+from app.db.models.user import User
+from app.schemas.supplier import SupplierCreate, SupplierUpdate, SupplierResponse
+from app.dependencies import get_current_user
 
 router = APIRouter(prefix="/suppliers", tags=["Suppliers"])
 

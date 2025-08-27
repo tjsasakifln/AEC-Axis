@@ -1,13 +1,15 @@
 import pytest
 import uuid
-from backend.app.db.models.user import User
-from backend.app.db.models.company import Company
-from backend.app.db.models.project import Project
-from backend.app.db.models.ifc_file import IFCFile
-from backend.app.db.models.material import Material
-from backend.app.db.models.supplier import Supplier
-from backend.app.db.models.rfq import RFQ, RFQItem
-from backend.app.security import hash_password
+from unittest.mock import patch, AsyncMock
+from jose import jwt
+from app.db.models.user import User
+from app.db.models.company import Company
+from app.db.models.project import Project
+from app.db.models.ifc_file import IFCFile
+from app.db.models.material import Material
+from app.db.models.supplier import Supplier
+from app.db.models.rfq import RFQ, RFQItem
+from app.security import hash_password
 
 
 @pytest.fixture
@@ -140,7 +142,8 @@ def test_materials_and_suppliers(db_session, test_project, create_test_user):
     }
 
 
-def test_create_rfq_success(client, auth_token, test_materials_and_suppliers, test_project, db_session):
+@patch('app.services.email_service.send_rfq_emails_batch', new_callable=AsyncMock)
+def test_create_rfq_success(mock_send_emails, client, auth_token, test_materials_and_suppliers, test_project, db_session):
     """
     Teste que cria um RFQ com múltiplos materiais e fornecedores.
     
@@ -192,3 +195,40 @@ def test_create_rfq_success(client, auth_token, test_materials_and_suppliers, te
     # Verificar se os IDs dos materiais estão corretos
     material_ids_from_db = [str(item.material_id) for item in rfq_items_from_db]
     assert set(material_ids_from_db) == set(selected_material_ids)
+    
+    # Verificar se a função de envio de e-mail foi chamada
+    mock_send_emails.assert_called_once()
+    
+    # Verificar os dados do e-mail enviado
+    call_args = mock_send_emails.call_args[0][0]  # Primeiro argumento da chamada
+    assert len(call_args) == 2  # 2 fornecedores selecionados
+    
+    # Verificar dados dos e-mails para cada fornecedor
+    supplier_emails = [suppliers[0].email, suppliers[1].email]
+    supplier_names = [suppliers[0].name, suppliers[1].name]
+    
+    sent_emails = [email_data["supplier_email"] for email_data in call_args]
+    sent_names = [email_data["supplier_name"] for email_data in call_args]
+    
+    assert set(sent_emails) == set(supplier_emails)
+    assert set(sent_names) == set(supplier_names)
+    
+    # Verificar se todos os e-mails contêm links JWT válidos
+    for email_data in call_args:
+        assert "quote_link" in email_data
+        quote_token = email_data["quote_link"]
+        
+        # Verificar se é um JWT válido
+        try:
+            decoded_token = jwt.decode(quote_token, "your-secret-key-here", algorithms=["HS256"])
+            assert "rfq_id" in decoded_token
+            assert "supplier_id" in decoded_token
+            assert "jti" in decoded_token
+            assert "type" in decoded_token
+            assert decoded_token["type"] == "supplier_quote"
+            assert decoded_token["rfq_id"] == str(rfq_id)
+        except Exception as e:
+            pytest.fail(f"Invalid JWT token: {e}")
+        
+        # Verificar se o projeto está correto
+        assert email_data["project_name"] == test_project["name"]

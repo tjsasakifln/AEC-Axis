@@ -5,10 +5,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
-from backend.app.db import get_db
-from backend.app.db.models import User, Company
-from backend.app.schemas.user import UserCreate, UserResponse
-from backend.app.security import hash_password
+from app.db import get_db
+from app.db.models import User, Company
+from app.schemas.user import UserCreate, UserResponse
+from app.security import hash_password
 
 router = APIRouter(prefix="/users", tags=["users"])
 

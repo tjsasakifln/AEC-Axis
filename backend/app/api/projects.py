@@ -8,11 +8,11 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from backend.app.db import get_db
-from backend.app.db.models.project import Project
-from backend.app.db.models.user import User
-from backend.app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse
-from backend.app.dependencies import get_current_user
+from app.db import get_db
+from app.db.models.project import Project
+from app.db.models.user import User
+from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse
+from app.dependencies import get_current_user
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 

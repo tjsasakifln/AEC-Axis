@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
-from backend.app.db import get_db
-from backend.app.db.models import Company
-from backend.app.schemas.company import CompanyCreate, CompanyResponse
+from app.db import get_db
+from app.db.models import Company
+from app.schemas.company import CompanyCreate, CompanyResponse
 
 router = APIRouter(prefix="/companies", tags=["companies"])
 

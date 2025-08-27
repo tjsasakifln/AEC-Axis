@@ -8,13 +8,13 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from backend.app.db import get_db
-from backend.app.db.models.material import Material
-from backend.app.db.models.ifc_file import IFCFile
-from backend.app.db.models.project import Project
-from backend.app.db.models.user import User
-from backend.app.schemas.material import MaterialUpdate, MaterialResponse
-from backend.app.dependencies import get_current_user
+from app.db import get_db
+from app.db.models.material import Material
+from app.db.models.ifc_file import IFCFile
+from app.db.models.project import Project
+from app.db.models.user import User
+from app.schemas.material import MaterialUpdate, MaterialResponse
+from app.dependencies import get_current_user
 
 router = APIRouter()
 

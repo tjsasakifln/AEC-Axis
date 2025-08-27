@@ -2,11 +2,11 @@ import pytest
 import uuid
 from io import BytesIO
 from unittest.mock import patch, MagicMock
-from backend.app.db.models.user import User
-from backend.app.db.models.company import Company
-from backend.app.db.models.ifc_file import IFCFile
-from backend.app.db.models.material import Material
-from backend.app.security import hash_password
+from app.db.models.user import User
+from app.db.models.company import Company
+from app.db.models.ifc_file import IFCFile
+from app.db.models.material import Material
+from app.security import hash_password
 
 
 @pytest.fixture

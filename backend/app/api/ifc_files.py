@@ -8,13 +8,13 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 
-from backend.app.db import get_db
-from backend.app.db.models.project import Project
-from backend.app.db.models.ifc_file import IFCFile
-from backend.app.db.models.user import User
-from backend.app.schemas.ifc_file import IFCFileResponse
-from backend.app.dependencies import get_current_user
-from backend.app.services.ifc_service import process_ifc_upload
+from app.db import get_db
+from app.db.models.project import Project
+from app.db.models.ifc_file import IFCFile
+from app.db.models.user import User
+from app.schemas.ifc_file import IFCFileResponse
+from app.dependencies import get_current_user
+from app.services.ifc_service import process_ifc_upload
 
 router = APIRouter(tags=["IFC Files"])
 

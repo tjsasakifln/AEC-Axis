@@ -13,8 +13,8 @@ from botocore.exceptions import ClientError
 from fastapi import HTTPException, status, UploadFile
 from sqlalchemy.orm import Session
 
-from backend.app.db.models.project import Project
-from backend.app.db.models.ifc_file import IFCFile
+from app.db.models.project import Project
+from app.db.models.ifc_file import IFCFile
 
 
 def _get_s3_client():

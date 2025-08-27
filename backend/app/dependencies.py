@@ -10,8 +10,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
 
-from backend.app.db import get_db
-from backend.app.db.models.user import User
+from app.db import get_db
+from app.db.models.user import User
 
 # JWT Configuration - shared from auth module
 SECRET_KEY = "your-secret-key-here"  # TODO: Move to environment variable

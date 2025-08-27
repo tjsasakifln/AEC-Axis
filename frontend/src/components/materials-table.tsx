@@ -3,15 +3,16 @@ import { materialsApi, Material, UpdateMaterialRequest } from '../services/api'
 
 interface MaterialsTableProps {
   ifcFileId: string
-  filename: string
+  onSelectedMaterialsChange?: (selectedIds: string[]) => void
 }
 
-function MaterialsTable({ ifcFileId, filename }: MaterialsTableProps) {
+function MaterialsTable({ ifcFileId, onSelectedMaterialsChange }: MaterialsTableProps) {
   const [materials, setMaterials] = useState<Material[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [editingCell, setEditingCell] = useState<{ materialId: string; field: string } | null>(null)
   const [editValue, setEditValue] = useState('')
+  const [selectedMaterials, setSelectedMaterials] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     loadMaterials()
@@ -90,6 +91,28 @@ function MaterialsTable({ ifcFileId, filename }: MaterialsTableProps) {
     }
   }
 
+  const handleMaterialSelect = (materialId: string, checked: boolean) => {
+    const newSelected = new Set(selectedMaterials)
+    if (checked) {
+      newSelected.add(materialId)
+    } else {
+      newSelected.delete(materialId)
+    }
+    setSelectedMaterials(newSelected)
+    onSelectedMaterialsChange?.(Array.from(newSelected))
+  }
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = materials.map(m => m.id)
+      setSelectedMaterials(new Set(allIds))
+      onSelectedMaterialsChange?.(allIds)
+    } else {
+      setSelectedMaterials(new Set())
+      onSelectedMaterialsChange?.([])
+    }
+  }
+
   const handleDelete = async (materialId: string, description: string) => {
     const confirmed = window.confirm(`Tem certeza de que deseja excluir o material "${description}"?`)
     if (!confirmed) return
@@ -155,11 +178,7 @@ function MaterialsTable({ ifcFileId, filename }: MaterialsTableProps) {
   }
 
   return (
-    <div style={{ marginTop: '30px' }}>
-      <h3 style={{ marginBottom: '15px' }}>
-        Quantitativos Extraídos - {filename}
-      </h3>
-      
+    <div>
       {error && (
         <div className="error-message" style={{ marginBottom: '15px' }}>
           {error}
@@ -175,6 +194,13 @@ function MaterialsTable({ ifcFileId, filename }: MaterialsTableProps) {
         <table className="table">
           <thead>
             <tr>
+              <th style={{ width: '40px' }}>
+                <input
+                  type="checkbox"
+                  checked={selectedMaterials.size === materials.length && materials.length > 0}
+                  onChange={(e) => handleSelectAll(e.target.checked)}
+                />
+              </th>
               <th>DESCRIÇÃO</th>
               <th>QUANTIDADE</th>
               <th>UNIDADE</th>
@@ -184,6 +210,13 @@ function MaterialsTable({ ifcFileId, filename }: MaterialsTableProps) {
           <tbody>
             {materials.map((material) => (
               <tr key={material.id}>
+                <td>
+                  <input
+                    type="checkbox"
+                    checked={selectedMaterials.has(material.id)}
+                    onChange={(e) => handleMaterialSelect(material.id, e.target.checked)}
+                  />
+                </td>
                 <td>
                   {renderCell(material, 'description', material.description)}
                 </td>

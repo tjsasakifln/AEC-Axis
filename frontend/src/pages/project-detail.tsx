@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
-import { projectsApi, ifcFilesApi, Project, IFCFile } from '../services/api'
+import { projectsApi, ifcFilesApi, rfqsApi, Project, IFCFile } from '../services/api'
 import MaterialsTable from '../components/materials-table'
+import SupplierSelectionModal from '../components/supplier-selection-modal'
 
 function ProjectDetail() {
   const { projectId } = useParams<{ projectId: string }>()
@@ -13,10 +14,13 @@ function ProjectDetail() {
   const [ifcFiles, setIfcFiles] = useState<IFCFile[]>([])
   const [isLoadingProject, setIsLoadingProject] = useState(true)
   const [isLoadingFiles, setIsLoadingFiles] = useState(true)
-  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+  const [messageType, setMessageType] = useState<'error' | 'success'>('error')
   const [isUploading, setIsUploading] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
   const [selectedIFCFile, setSelectedIFCFile] = useState<IFCFile | null>(null)
+  const [selectedMaterialIds, setSelectedMaterialIds] = useState<string[]>([])
+  const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false)
   const ws = useRef<WebSocket | null>(null)
   const clientId = useRef<string>(Math.random().toString(36).substring(7))
 
@@ -92,7 +96,8 @@ function ProjectDetail() {
       const projectData = await projectsApi.getById(projectId!)
       setProject(projectData)
     } catch (err) {
-      setError('Erro ao carregar projeto')
+      setMessage('Erro ao carregar projeto')
+      setMessageType('error')
       console.error(err)
     } finally {
       setIsLoadingProject(false)
@@ -105,7 +110,8 @@ function ProjectDetail() {
       const filesData = await ifcFilesApi.getByProjectId(projectId!)
       setIfcFiles(filesData)
     } catch (err) {
-      setError('Erro ao carregar arquivos IFC')
+      setMessage('Erro ao carregar arquivos IFC')
+      setMessageType('error')
       console.error(err)
     } finally {
       setIsLoadingFiles(false)
@@ -117,17 +123,19 @@ function ProjectDetail() {
 
     const file = files[0]
     if (!file.name.toLowerCase().endsWith('.ifc')) {
-      setError('Por favor, selecione apenas arquivos IFC')
+      setMessage('Por favor, selecione apenas arquivos IFC')
+      setMessageType('error')
       return
     }
 
     try {
       setIsUploading(true)
-      setError('')
+      setMessage('')
       const uploadedFile = await ifcFilesApi.upload(projectId!, file)
       setIfcFiles([...ifcFiles, uploadedFile])
     } catch (err) {
-      setError('Erro ao fazer upload do arquivo')
+      setMessage('Erro ao fazer upload do arquivo')
+      setMessageType('error')
       console.error(err)
     } finally {
       setIsUploading(false)
@@ -160,6 +168,35 @@ function ProjectDetail() {
     const sizes = ['B', 'KB', 'MB', 'GB']
     const i = Math.floor(Math.log(bytes) / Math.log(k))
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  }
+
+  const handleRFQSubmission = async (supplierIds: string[]) => {
+    if (!projectId || selectedMaterialIds.length === 0 || supplierIds.length === 0) {
+      return
+    }
+
+    try {
+      setMessage('')
+      
+      await rfqsApi.create({
+        project_id: projectId,
+        material_ids: selectedMaterialIds,
+        supplier_ids: supplierIds
+      })
+
+      setIsSupplierModalOpen(false)
+      setSelectedMaterialIds([])
+      setMessage('RFQ enviado com sucesso! Os fornecedores receberão a solicitação de cotação.')
+      setMessageType('success')
+      
+      setTimeout(() => setMessage(''), 5000)
+    } catch (err) {
+      setMessage('Erro ao enviar RFQ. Tente novamente.')
+      setMessageType('error')
+      console.error(err)
+    } finally {
+      // RFQ submission completed
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -214,7 +251,21 @@ function ProjectDetail() {
 
       <h2 style={{ marginBottom: '30px' }}>{project.name}</h2>
 
-      {error && <div className="error-message">{error}</div>}
+      {message && (
+        <div 
+          className={messageType === 'error' ? 'error-message' : 'success-message'}
+          style={{
+            padding: '10px 15px',
+            borderRadius: '4px',
+            marginBottom: '15px',
+            backgroundColor: messageType === 'error' ? '#f8d7da' : '#d1f2eb',
+            color: messageType === 'error' ? '#721c24' : '#0c5460',
+            border: `1px solid ${messageType === 'error' ? '#f5c6cb' : '#bee5eb'}`
+          }}
+        >
+          {message}
+        </div>
+      )}
 
       <div style={{ marginBottom: '30px' }}>
         <h3 style={{ marginBottom: '15px' }}>Upload de Arquivos IFC</h3>
@@ -284,7 +335,12 @@ function ProjectDetail() {
               {ifcFiles.map((file) => (
                 <tr
                   key={file.id}
-                  onClick={() => file.status === 'COMPLETED' && setSelectedIFCFile(file)}
+                  onClick={() => {
+                    if (file.status === 'COMPLETED') {
+                      setSelectedIFCFile(file)
+                      setSelectedMaterialIds([])
+                    }
+                  }}
                   style={{
                     cursor: file.status === 'COMPLETED' ? 'pointer' : 'default',
                     backgroundColor: selectedIFCFile?.id === file.id ? '#f8f9fa' : 'transparent'
@@ -315,11 +371,38 @@ function ProjectDetail() {
       </div>
 
       {selectedIFCFile && selectedIFCFile.status === 'COMPLETED' && (
-        <MaterialsTable
-          ifcFileId={selectedIFCFile.id}
-          filename={selectedIFCFile.filename}
-        />
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+            <h3>Quantitativos Extraídos - {selectedIFCFile.filename}</h3>
+            <button
+              className="btn"
+              disabled={selectedMaterialIds.length === 0}
+              onClick={() => setIsSupplierModalOpen(true)}
+              style={{
+                backgroundColor: selectedMaterialIds.length > 0 ? '#007bff' : '#6c757d',
+                color: 'white',
+                border: 'none',
+                padding: '10px 20px',
+                borderRadius: '6px',
+                cursor: selectedMaterialIds.length > 0 ? 'pointer' : 'not-allowed'
+              }}
+            >
+              Gerar Cotação ({selectedMaterialIds.length} itens)
+            </button>
+          </div>
+          <MaterialsTable
+            ifcFileId={selectedIFCFile.id}
+            onSelectedMaterialsChange={setSelectedMaterialIds}
+          />
+        </div>
       )}
+
+      <SupplierSelectionModal
+        isOpen={isSupplierModalOpen}
+        onClose={() => setIsSupplierModalOpen(false)}
+        onSubmit={handleRFQSubmission}
+        selectedMaterialCount={selectedMaterialIds.length}
+      />
     </div>
   )
 }
