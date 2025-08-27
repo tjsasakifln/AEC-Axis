@@ -149,18 +149,18 @@ Security:  JWT | bcrypt | GDPR compliant
 
 ## 🎯 **Milestones and KPIs**
 
-### **MVP Completed (Q4 2024)**
+### **MVP Completed (Q3 2025)**
 - ✅ **Complete BIM-to-Quotation workflow** implemented
 - ✅ **Supplier quote submission system** operational
 - ✅ **Comparative dashboard** for intelligent procurement decisions
 - ✅ **100% test coverage** on all critical endpoints
 
-### **Go-to-Market (Q1 2025)**
+### **Go-to-Market (Q4 2025)**
 - **10 construction companies** in the Founders Program
 - **100 RFQs** processed through the platform
 - **95% success rate** in IFC processing
 
-### **Expansion (Q2-Q4 2025)**
+### **Expansion (Q1-Q4 2026)**
 - **50+ active companies** on the platform
 - **$1M+ volume** of processed quotations
 - **Series A** for national expansion
@@ -198,7 +198,7 @@ Security:  JWT | bcrypt | GDPR compliant
 ### **Investor Contact**
 - **Email**: [tiago@confenge.com.br](mailto:tiago@confenge.com.br)
 - **Phone**: [+55 48 98834-4559](tel:+5548988344559)
-- **LinkedIn**: Connect for pitch deck and demonstration
+- **LinkedIn**: [https://www.linkedin.com/in/tiagosasaki/](https://www.linkedin.com/in/tiagosasaki/) - Connect for pitch deck and demonstration
 
 ---
 
