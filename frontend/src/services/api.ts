@@ -105,6 +105,42 @@ export interface QuoteSubmissionResponse {
   submitted_at: string
 }
 
+export interface SupplierInfo {
+  id: string
+  name: string
+  email: string
+  cnpj: string
+}
+
+export interface DashboardQuoteItem {
+  price: number
+  lead_time_days: number
+  submitted_at: string
+  supplier: SupplierInfo
+}
+
+export interface DashboardMaterial {
+  id: string
+  rfq_item_id: string
+  description: string
+  quantity: number
+  unit: string
+  quotes: DashboardQuoteItem[]
+}
+
+export interface QuoteDashboardData {
+  rfq_id: string
+  project: ProjectInfo
+  materials: DashboardMaterial[]
+}
+
+export interface RFQ {
+  id: string
+  status: string
+  project_id: string
+  created_at: string
+}
+
 export const projectsApi = {
   getAll: async (): Promise<Project[]> => {
     const response = await api.get('/projects')
@@ -167,6 +203,16 @@ export const suppliersApi = {
 export const rfqsApi = {
   create: async (data: CreateRFQRequest): Promise<void> => {
     await api.post('/rfqs', data)
+  },
+
+  getByProjectId: async (projectId: string): Promise<RFQ[]> => {
+    const response = await api.get(`/projects/${projectId}/rfqs`)
+    return response.data
+  },
+
+  getDashboardData: async (rfqId: string): Promise<QuoteDashboardData> => {
+    const response = await api.get(`/rfqs/${rfqId}/dashboard`)
+    return response.data
   }
 }
 

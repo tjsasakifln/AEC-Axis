@@ -11,7 +11,9 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.db.models.project import Project
 from app.db.models.user import User
+from app.db.models.rfq import RFQ
 from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse
+from app.schemas.rfq import RFQResponse
 from app.dependencies import get_current_user
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
@@ -204,3 +206,51 @@ def delete_project(
     
     db.delete(project)
     db.commit()
+
+
+@router.get("/{project_id}/rfqs", response_model=List[RFQResponse])
+def get_project_rfqs(
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> List[RFQResponse]:
+    """
+    Get all RFQs for a specific project.
+    
+    Args:
+        project_id: UUID of the project
+        current_user: Current authenticated user
+        db: Database session
+        
+    Returns:
+        List of RFQs for the project
+        
+    Raises:
+        HTTPException: 404 if project not found or doesn't belong to user's company
+    """
+    try:
+        project_uuid = uuid.UUID(project_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found"
+        )
+    
+    # Verify project belongs to user's company
+    project = db.query(Project).filter(
+        Project.id == project_uuid,
+        Project.company_id == current_user.company_id
+    ).first()
+    
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found"
+        )
+    
+    # Get all RFQs for this project
+    rfqs = db.query(RFQ).filter(
+        RFQ.project_id == project_uuid
+    ).all()
+    
+    return rfqs

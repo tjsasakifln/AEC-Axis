@@ -14,7 +14,9 @@ from app.db.models.material import Material
 from app.db.models.supplier import Supplier
 from app.db.models.ifc_file import IFCFile
 from app.db.models.rfq import RFQ, RFQItem
+from app.db.models.quote import Quote, QuoteItem
 from app.schemas.rfq import RFQCreate, RFQResponse
+from app.schemas.quote import QuoteDashboardResponse, DashboardMaterial, DashboardQuoteItem, SupplierInfo, ProjectInfo
 from app.dependencies import get_current_user
 from app.services.rfq_service import generate_supplier_quote_link
 from app.services import email_service
@@ -130,3 +132,109 @@ async def create_rfq(
         print(f"Warning: Failed to send some RFQ emails: {e}")
     
     return db_rfq
+
+
+@router.get("/{rfq_id}/dashboard", response_model=QuoteDashboardResponse)
+async def get_quote_comparison_data(
+    rfq_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get quote comparison data for dashboard.
+    
+    Args:
+        rfq_id: RFQ UUID
+        current_user: Current authenticated user
+        db: Database session
+        
+    Returns:
+        Dashboard data with materials and their quotes grouped for comparison
+        
+    Raises:
+        HTTPException: 404 if RFQ not found or doesn't belong to user's company
+    """
+    # Verify RFQ belongs to user's company
+    rfq = db.query(RFQ).join(Project).filter(
+        RFQ.id == rfq_id,
+        Project.company_id == current_user.company_id
+    ).first()
+    
+    if not rfq:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="RFQ not found"
+        )
+    
+    # Get project information
+    project = db.query(Project).filter(Project.id == rfq.project_id).first()
+    
+    # Get all materials for this RFQ with their quotes
+    query = db.query(
+        Material.id,
+        Material.description,
+        Material.quantity,
+        Material.unit,
+        RFQItem.id.label("rfq_item_id"),
+        QuoteItem.price,
+        QuoteItem.lead_time_days,
+        Quote.submitted_at,
+        Supplier.id.label("supplier_id"),
+        Supplier.name.label("supplier_name"),
+        Supplier.email.label("supplier_email"),
+        Supplier.cnpj.label("supplier_cnpj")
+    ).select_from(Material)\
+     .join(RFQItem, RFQItem.material_id == Material.id)\
+     .outerjoin(QuoteItem, QuoteItem.rfq_item_id == RFQItem.id)\
+     .outerjoin(Quote, Quote.id == QuoteItem.quote_id)\
+     .outerjoin(Supplier, Supplier.id == Quote.supplier_id)\
+     .filter(RFQItem.rfq_id == rfq_id)\
+     .order_by(Material.description, Supplier.name)
+    
+    results = query.all()
+    
+    # Group results by material
+    materials_dict = {}
+    for row in results:
+        material_id = str(row.id)
+        
+        if material_id not in materials_dict:
+            materials_dict[material_id] = {
+                "id": row.id,
+                "rfq_item_id": row.rfq_item_id,
+                "description": row.description,
+                "quantity": row.quantity,
+                "unit": row.unit,
+                "quotes": []
+            }
+        
+        # Add quote if it exists (not null from outer join)
+        if row.price is not None:
+            quote_item = DashboardQuoteItem(
+                price=row.price,
+                lead_time_days=row.lead_time_days,
+                submitted_at=row.submitted_at,
+                supplier=SupplierInfo(
+                    id=row.supplier_id,
+                    name=row.supplier_name,
+                    email=row.supplier_email,
+                    cnpj=row.supplier_cnpj
+                )
+            )
+            materials_dict[material_id]["quotes"].append(quote_item)
+    
+    # Convert to list of DashboardMaterial objects
+    materials = [
+        DashboardMaterial(**material_data)
+        for material_data in materials_dict.values()
+    ]
+    
+    return QuoteDashboardResponse(
+        rfq_id=rfq_id,
+        project=ProjectInfo(
+            id=project.id,
+            name=project.name,
+            address=project.address
+        ),
+        materials=materials
+    )

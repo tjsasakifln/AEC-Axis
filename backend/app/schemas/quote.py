@@ -67,3 +67,36 @@ class QuoteDetailsResponse(BaseModel):
     rfq_id: uuid.UUID
     project: ProjectInfo
     materials: List[MaterialInfo]
+
+
+class SupplierInfo(BaseModel):
+    """Schema for supplier information in dashboard."""
+    id: uuid.UUID
+    name: str
+    email: str
+    cnpj: str
+
+
+class DashboardQuoteItem(BaseModel):
+    """Schema for quote item in dashboard comparison."""
+    price: Decimal
+    lead_time_days: int
+    submitted_at: datetime
+    supplier: SupplierInfo
+
+
+class DashboardMaterial(BaseModel):
+    """Schema for material with quotes in dashboard."""
+    id: uuid.UUID
+    rfq_item_id: uuid.UUID
+    description: str
+    quantity: Decimal
+    unit: str
+    quotes: List[DashboardQuoteItem]
+
+
+class QuoteDashboardResponse(BaseModel):
+    """Schema for quote dashboard comparison response."""
+    rfq_id: uuid.UUID
+    project: ProjectInfo
+    materials: List[DashboardMaterial]

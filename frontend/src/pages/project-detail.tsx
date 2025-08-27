@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
-import { projectsApi, ifcFilesApi, rfqsApi, Project, IFCFile } from '../services/api'
+import { projectsApi, ifcFilesApi, rfqsApi, Project, IFCFile, RFQ } from '../services/api'
 import MaterialsTable from '../components/materials-table'
 import SupplierSelectionModal from '../components/supplier-selection-modal'
+import QuoteDashboard from '../components/quote-dashboard'
 
 function ProjectDetail() {
   const { projectId } = useParams<{ projectId: string }>()
@@ -12,8 +13,10 @@ function ProjectDetail() {
   
   const [project, setProject] = useState<Project | null>(null)
   const [ifcFiles, setIfcFiles] = useState<IFCFile[]>([])
+  const [rfqs, setRfqs] = useState<RFQ[]>([])
   const [isLoadingProject, setIsLoadingProject] = useState(true)
   const [isLoadingFiles, setIsLoadingFiles] = useState(true)
+  const [isLoadingRfqs, setIsLoadingRfqs] = useState(true)
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState<'error' | 'success'>('error')
   const [isUploading, setIsUploading] = useState(false)
@@ -21,6 +24,7 @@ function ProjectDetail() {
   const [selectedIFCFile, setSelectedIFCFile] = useState<IFCFile | null>(null)
   const [selectedMaterialIds, setSelectedMaterialIds] = useState<string[]>([])
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false)
+  const [selectedRfqId, setSelectedRfqId] = useState<string | null>(null)
   const ws = useRef<WebSocket | null>(null)
   const clientId = useRef<string>(Math.random().toString(36).substring(7))
 
@@ -28,6 +32,7 @@ function ProjectDetail() {
     if (projectId) {
       loadProjectData()
       loadIfcFiles()
+      loadRfqs()
       setupWebSocket()
     }
     
@@ -118,6 +123,20 @@ function ProjectDetail() {
     }
   }
 
+  const loadRfqs = async () => {
+    try {
+      setIsLoadingRfqs(true)
+      const rfqsData = await rfqsApi.getByProjectId(projectId!)
+      setRfqs(rfqsData)
+    } catch (err) {
+      setMessage('Erro ao carregar RFQs')
+      setMessageType('error')
+      console.error(err)
+    } finally {
+      setIsLoadingRfqs(false)
+    }
+  }
+
   const handleFileUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return
 
@@ -189,6 +208,9 @@ function ProjectDetail() {
       setMessage('RFQ enviado com sucesso! Os fornecedores receberão a solicitação de cotação.')
       setMessageType('success')
       
+      // Reload RFQs to show the new one
+      loadRfqs()
+      
       setTimeout(() => setMessage(''), 5000)
     } catch (err) {
       setMessage('Erro ao enviar RFQ. Tente novamente.')
@@ -251,7 +273,78 @@ function ProjectDetail() {
 
       <h2 style={{ marginBottom: '30px' }}>{project.name}</h2>
 
-      {message && (
+      {selectedRfqId && (
+        <QuoteDashboard 
+          rfqId={selectedRfqId} 
+          onClose={() => setSelectedRfqId(null)} 
+        />
+      )}
+
+      {!selectedRfqId && (
+        <>
+          {/* RFQs Section */}
+          <div style={{ marginBottom: '30px' }}>
+            <h3 style={{ marginBottom: '15px' }}>RFQs Gerados</h3>
+            
+            {isLoadingRfqs ? (
+              <div>Carregando RFQs...</div>
+            ) : rfqs.length === 0 ? (
+              <div className="empty-state">
+                <h4>Nenhum RFQ gerado ainda.</h4>
+                <p>Faça o upload de um arquivo IFC e gere cotações para ver os RFQs aqui.</p>
+              </div>
+            ) : (
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>STATUS</th>
+                    <th>CRIADO EM</th>
+                    <th>AÇÕES</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rfqs.map((rfq) => (
+                    <tr key={rfq.id}>
+                      <td style={{ fontFamily: 'monospace', fontSize: '14px' }}>
+                        {rfq.id.slice(-8)}
+                      </td>
+                      <td>
+                        <span
+                          style={{
+                            color: rfq.status === 'OPEN' ? '#007bff' : '#6c757d',
+                            fontWeight: 'bold',
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            backgroundColor: rfq.status === 'OPEN' ? '#007bff20' : '#6c757d20'
+                          }}
+                        >
+                          {rfq.status}
+                        </span>
+                      </td>
+                      <td>{formatDate(rfq.created_at)}</td>
+                      <td>
+                        <button
+                          onClick={() => setSelectedRfqId(rfq.id)}
+                          className="btn btn-primary"
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '14px'
+                          }}
+                        >
+                          Ver Dashboard
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </>
+      )}
+
+      {!selectedRfqId && message && (
         <div 
           className={messageType === 'error' ? 'error-message' : 'success-message'}
           style={{
@@ -267,8 +360,9 @@ function ProjectDetail() {
         </div>
       )}
 
-      <div style={{ marginBottom: '30px' }}>
-        <h3 style={{ marginBottom: '15px' }}>Upload de Arquivos IFC</h3>
+      {!selectedRfqId && (
+        <div style={{ marginBottom: '30px' }}>
+          <h3 style={{ marginBottom: '15px' }}>Upload de Arquivos IFC</h3>
         
         <div
           onDrop={handleDrop}
@@ -309,9 +403,11 @@ function ProjectDetail() {
             </div>
           )}
         </div>
-      </div>
+        </div>
+      )}
 
-      <div>
+      {!selectedRfqId && (
+        <div>
         <h3 style={{ marginBottom: '15px' }}>Arquivos IFC</h3>
         
         {isLoadingFiles ? (
@@ -368,9 +464,10 @@ function ProjectDetail() {
             </tbody>
           </table>
         )}
-      </div>
+        </div>
+      )}
 
-      {selectedIFCFile && selectedIFCFile.status === 'COMPLETED' && (
+      {!selectedRfqId && selectedIFCFile && selectedIFCFile.status === 'COMPLETED' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
             <h3>Quantitativos Extraídos - {selectedIFCFile.filename}</h3>
@@ -397,12 +494,14 @@ function ProjectDetail() {
         </div>
       )}
 
-      <SupplierSelectionModal
-        isOpen={isSupplierModalOpen}
-        onClose={() => setIsSupplierModalOpen(false)}
-        onSubmit={handleRFQSubmission}
-        selectedMaterialCount={selectedMaterialIds.length}
-      />
+      {!selectedRfqId && (
+        <SupplierSelectionModal
+          isOpen={isSupplierModalOpen}
+          onClose={() => setIsSupplierModalOpen(false)}
+          onSubmit={handleRFQSubmission}
+          selectedMaterialCount={selectedMaterialIds.length}
+        />
+      )}
     </div>
   )
 }

@@ -16,8 +16,8 @@ import ifcopenshell
 from botocore.exceptions import ClientError
 from sqlalchemy.orm import Session
 
-from backend.app.db.models.ifc_file import IFCFile
-from backend.app.db.models.material import Material
+from app.db.models.ifc_file import IFCFile
+from app.db.models.material import Material
 
 
 async def _notify_status_update(project_id: str, ifc_file_id: str, status: str, filename: str):
@@ -28,7 +28,7 @@ async def _notify_status_update(project_id: str, ifc_file_id: str, status: str, 
     this could be replaced with a message queue or event bus.
     """
     try:
-        from backend.app.api.websockets import notify_ifc_status_update
+        from app.api.websockets import notify_ifc_status_update
         await notify_ifc_status_update(
             project_id=project_id,
             ifc_file_id=ifc_file_id,
@@ -214,7 +214,7 @@ async def start_worker_loop() -> None:
     processes IFC files when messages are received, and deletes processed messages.
     """
     import json
-    from backend.app.db.base import SessionLocal
+    from app.db.base import SessionLocal
     
     # Create SQS client
     sqs_client = _get_sqs_client()
