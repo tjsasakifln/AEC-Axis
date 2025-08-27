@@ -8,6 +8,7 @@ from backend.app.api.companies import router as companies_router
 from backend.app.api.users import router as users_router
 from backend.app.api.projects import router as projects_router
 from backend.app.api.suppliers import router as suppliers_router
+from backend.app.api.ifc_files import router as ifc_files_router
 
 app = FastAPI(
     title="AEC Axis API",
@@ -21,6 +22,7 @@ app.include_router(companies_router)
 app.include_router(users_router)
 app.include_router(projects_router)
 app.include_router(suppliers_router)
+app.include_router(ifc_files_router)
 
 
 @app.get("/")

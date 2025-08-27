@@ -37,5 +37,8 @@ class Project(Base):
     # Relationship to Company
     company = relationship("Company", back_populates="projects")
     
+    # Relationship to IFC Files
+    ifc_files = relationship("IFCFile", back_populates="project")
+    
     def __repr__(self) -> str:
         return f"<Project(id={self.id}, name='{self.name}', company_id={self.company_id})>"

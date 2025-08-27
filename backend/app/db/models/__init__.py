@@ -5,5 +5,6 @@ from .company import Company
 from .user import User
 from .project import Project
 from .supplier import Supplier
+from .ifc_file import IFCFile
 
-__all__ = ["Company", "User", "Project", "Supplier"]
+__all__ = ["Company", "User", "Project", "Supplier", "IFCFile"]
