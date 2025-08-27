@@ -11,6 +11,7 @@ from app.api.suppliers import router as suppliers_router
 from app.api.ifc_files import router as ifc_files_router
 from app.api.materials import router as materials_router
 from app.api.rfqs import router as rfqs_router
+from app.api.quotes import router as quotes_router
 from app.api.websockets import router as websockets_router
 
 app = FastAPI(
@@ -28,6 +29,7 @@ app.include_router(suppliers_router)
 app.include_router(ifc_files_router)
 app.include_router(materials_router)
 app.include_router(rfqs_router)
+app.include_router(quotes_router)
 app.include_router(websockets_router)
 
 

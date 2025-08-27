@@ -40,6 +40,7 @@ class Supplier(Base):
     
     # Relationships
     company = relationship("Company", back_populates="suppliers")
+    quotes = relationship("Quote", back_populates="supplier", cascade="all, delete-orphan")
     
     def __repr__(self) -> str:
         return f"<Supplier(id={self.id}, name='{self.name}', cnpj='{self.cnpj}')>"

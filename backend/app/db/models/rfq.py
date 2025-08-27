@@ -35,6 +35,7 @@ class RFQ(Base):
     # Relationships
     project = relationship("Project", back_populates="rfqs")
     rfq_items = relationship("RFQItem", back_populates="rfq", cascade="all, delete-orphan")
+    quotes = relationship("Quote", back_populates="rfq", cascade="all, delete-orphan")
     
     def __repr__(self) -> str:
         return f"<RFQ(id={self.id}, project_id={self.project_id}, status='{self.status}')>"
@@ -62,6 +63,7 @@ class RFQItem(Base):
     # Relationships
     rfq = relationship("RFQ", back_populates="rfq_items")
     material = relationship("Material", back_populates="rfq_items")
+    quote_items = relationship("QuoteItem", back_populates="rfq_item", cascade="all, delete-orphan")
     
     def __repr__(self) -> str:
         return f"<RFQItem(id={self.id}, rfq_id={self.rfq_id}, material_id={self.material_id})>"

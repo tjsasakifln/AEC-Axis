@@ -1,0 +1,46 @@
+"""
+Pydantic schemas for Quote endpoints.
+"""
+import uuid
+from datetime import datetime
+from typing import List
+from decimal import Decimal
+
+from pydantic import BaseModel, Field
+
+
+class QuoteItemCreate(BaseModel):
+    """Schema for creating a quote item."""
+    rfq_item_id: uuid.UUID = Field(..., description="RFQ Item ID this quote refers to")
+    price: float = Field(..., gt=0, description="Quoted price for the item")
+    lead_time_days: int = Field(..., gt=0, description="Lead time in days for delivery")
+
+
+class QuoteCreate(BaseModel):
+    """Schema for creating a quote."""
+    items: List[QuoteItemCreate] = Field(..., min_length=1, description="List of quoted items")
+
+
+class QuoteItemResponse(BaseModel):
+    """Schema for quote item responses."""
+    id: uuid.UUID
+    rfq_item_id: uuid.UUID
+    price: Decimal
+    lead_time_days: int
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class QuoteResponse(BaseModel):
+    """Schema for quote responses."""
+    id: uuid.UUID
+    rfq_id: uuid.UUID
+    supplier_id: uuid.UUID
+    submitted_at: datetime
+    created_at: datetime
+    quote_items: List[QuoteItemResponse] = Field(default_factory=list)
+    
+    class Config:
+        from_attributes = True
