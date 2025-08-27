@@ -283,3 +283,147 @@ def test_upload_to_project_of_another_company_fails(client, db_session, ifc_file
     assert response.status_code == 404
     response_data = response.json()
     assert "detail" in response_data
+
+
+@patch('backend.app.services.ifc_service._get_sqs_client')
+@patch('backend.app.services.ifc_service._get_sqs_queue_url')
+@patch('backend.app.services.ifc_service._get_s3_client')
+@patch('backend.app.services.ifc_service._get_s3_bucket_name')
+def test_get_ifc_files_for_project_success(mock_get_bucket_name, mock_get_s3_client, mock_get_queue_url, mock_get_sqs_client, client, auth_token, test_project, ifc_file_content):
+    """Teste para listar arquivos IFC de um projeto específico"""
+    # Setup mocks para o upload
+    mock_s3_client = MagicMock()
+    mock_get_s3_client.return_value = mock_s3_client
+    mock_get_bucket_name.return_value = 'test-bucket'
+    
+    mock_sqs_client = MagicMock()
+    mock_get_sqs_client.return_value = mock_sqs_client
+    mock_get_queue_url.return_value = 'https://sqs.us-east-1.amazonaws.com/123456789012/test-queue'
+    
+    project_id = test_project["id"]
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    
+    # 1. Fazer upload de um arquivo IFC para o projeto
+    files1 = {"file": ("arquivo1.ifc", BytesIO(ifc_file_content), "application/x-step")}
+    response1 = client.post(f"/projects/{project_id}/ifc-files", files=files1, headers=headers)
+    assert response1.status_code == 202
+    file1_data = response1.json()
+    
+    # 2. Fazer upload de um segundo arquivo IFC
+    files2 = {"file": ("arquivo2.ifc", BytesIO(ifc_file_content), "application/x-step")}
+    response2 = client.post(f"/projects/{project_id}/ifc-files", files=files2, headers=headers)
+    assert response2.status_code == 202
+    file2_data = response2.json()
+    
+    # 3. Fazer requisição GET para listar arquivos IFC do projeto
+    response = client.get(f"/projects/{project_id}/ifc-files", headers=headers)
+    
+    # 4. Verificar resposta
+    assert response.status_code == 200
+    response_data = response.json()
+    
+    # Deve retornar uma lista
+    assert isinstance(response_data, list)
+    assert len(response_data) == 2
+    
+    # Verificar se contém os metadados corretos dos arquivos
+    file_ids = {file["id"] for file in response_data}
+    assert file1_data["id"] in file_ids
+    assert file2_data["id"] in file_ids
+    
+    # Verificar estrutura de cada arquivo
+    for file_info in response_data:
+        assert "id" in file_info
+        assert "original_filename" in file_info
+        assert "status" in file_info
+        assert "project_id" in file_info
+        assert "created_at" in file_info
+        assert file_info["project_id"] == project_id
+        assert file_info["original_filename"] in ["arquivo1.ifc", "arquivo2.ifc"]
+
+
+def test_get_ifc_files_for_nonexistent_project_fails(client, auth_token):
+    """Teste GET para um project_id que não existe"""
+    nonexistent_project_id = str(uuid.uuid4())
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    
+    response = client.get(f"/projects/{nonexistent_project_id}/ifc-files", headers=headers)
+    
+    assert response.status_code == 404
+    response_data = response.json()
+    assert "detail" in response_data
+
+
+def test_get_ifc_files_unauthenticated_fails(client, test_project):
+    """Teste GET sem autenticação"""
+    project_id = test_project["id"]
+    
+    response = client.get(f"/projects/{project_id}/ifc-files")
+    
+    assert response.status_code in [401, 403]
+    response_data = response.json()
+    assert "detail" in response_data
+
+
+def test_get_ifc_files_for_project_of_another_company_fails(client, db_session, ifc_file_content):
+    """Teste GET de arquivos IFC para projeto de outra empresa"""
+    # Criar primeira empresa e usuário
+    company1 = Company(
+        name="Company 1",
+        cnpj="11.111.111/0001-11",
+        address="Address 1"
+    )
+    db_session.add(company1)
+    db_session.commit()
+    db_session.refresh(company1)
+    
+    user1 = User(
+        email="user1@company1.com",
+        hashed_password=hash_password("senha123"),
+        full_name="User 1",
+        company_id=company1.id
+    )
+    db_session.add(user1)
+    db_session.commit()
+    
+    # Criar segunda empresa e usuário
+    company2 = Company(
+        name="Company 2",
+        cnpj="22.222.222/0002-22",
+        address="Address 2"
+    )
+    db_session.add(company2)
+    db_session.commit()
+    db_session.refresh(company2)
+    
+    user2 = User(
+        email="user2@company2.com",
+        hashed_password=hash_password("senha123"),
+        full_name="User 2",
+        company_id=company2.id
+    )
+    db_session.add(user2)
+    db_session.commit()
+    
+    # Obter tokens
+    login_data1 = {"email": "user1@company1.com", "password": "senha123"}
+    response1 = client.post("/auth/token", json=login_data1)
+    token1 = response1.json()["access_token"]
+    
+    login_data2 = {"email": "user2@company2.com", "password": "senha123"}
+    response2 = client.post("/auth/token", json=login_data2)
+    token2 = response2.json()["access_token"]
+    
+    # Usuário 1 cria um projeto
+    project_data = {"name": "Company 1 Project"}
+    headers1 = {"Authorization": f"Bearer {token1}"}
+    response = client.post("/projects", json=project_data, headers=headers1)
+    project_id = response.json()["id"]
+    
+    # Usuário 2 tenta acessar arquivos IFC do projeto da empresa 1
+    headers2 = {"Authorization": f"Bearer {token2}"}
+    response = client.get(f"/projects/{project_id}/ifc-files", headers=headers2)
+    
+    assert response.status_code == 404
+    response_data = response.json()
+    assert "detail" in response_data
