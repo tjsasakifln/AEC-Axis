@@ -3,6 +3,7 @@ import uuid
 import os
 from io import BytesIO
 from pathlib import Path
+from unittest.mock import patch, MagicMock
 from backend.app.db.models.user import User
 from backend.app.db.models.company import Company
 from backend.app.security import hash_password
@@ -106,8 +107,22 @@ def txt_file_content():
     return b"This is a text file, not an IFC file."
 
 
-def test_upload_ifc_file_success(client, auth_token, test_project, ifc_file_content):
+@patch('backend.app.services.ifc_service._get_sqs_client')
+@patch('backend.app.services.ifc_service._get_sqs_queue_url')
+@patch('backend.app.services.ifc_service._get_s3_client')
+@patch('backend.app.services.ifc_service._get_s3_bucket_name')
+def test_upload_ifc_file_success(mock_get_bucket_name, mock_get_s3_client, mock_get_queue_url, mock_get_sqs_client, client, auth_token, test_project, ifc_file_content):
     """Teste o upload bem-sucedido do arquivo .ifc de teste"""
+    # Setup S3 mocks
+    mock_s3_client = MagicMock()
+    mock_get_s3_client.return_value = mock_s3_client
+    mock_get_bucket_name.return_value = 'test-bucket'
+    
+    # Setup SQS mocks
+    mock_sqs_client = MagicMock()
+    mock_get_sqs_client.return_value = mock_sqs_client
+    mock_get_queue_url.return_value = 'https://sqs.us-east-1.amazonaws.com/123456789012/test-queue'
+    
     project_id = test_project["id"]
     
     headers = {"Authorization": f"Bearer {auth_token}"}
@@ -122,21 +137,40 @@ def test_upload_ifc_file_success(client, auth_token, test_project, ifc_file_cont
     assert response_data["status"] == "PENDING"
     assert response_data["project_id"] == project_id
     
-    # Verificar se o arquivo foi salvo fisicamente
+    # Verificar se o arquivo foi armazenado no S3 (objeto key)
     file_path = response_data.get("file_path")
     assert file_path is not None
-    assert os.path.exists(file_path)
+    assert file_path.startswith("ifc-files/")
     assert file_path.endswith(".ifc")
-    assert "backend" in file_path and "uploads" in file_path
     
-    # Verificar se o conteúdo do arquivo salvo é correto
-    with open(file_path, "rb") as saved_file:
-        saved_content = saved_file.read()
-        assert saved_content == ifc_file_content
+    # Verificar se o upload_fileobj foi chamado com os parâmetros corretos
+    mock_s3_client.upload_fileobj.assert_called_once()
+    call_args = mock_s3_client.upload_fileobj.call_args
     
-    # Limpar arquivo de teste
-    if os.path.exists(file_path):
-        os.remove(file_path)
+    # Verificar argumentos posicionais: fileobj, bucket, key
+    assert call_args[0][1] == 'test-bucket'  # bucket name
+    assert call_args[0][2].startswith('ifc-files/')  # S3 object key
+    assert call_args[0][2].endswith('.ifc')  # S3 object key
+    
+    # Verificar argumentos nomeados (ExtraArgs)
+    extra_args = call_args[1]['ExtraArgs']
+    assert extra_args['ContentType'] == 'application/x-step'
+    assert extra_args['Metadata']['original_filename'] == 'test.ifc'
+    assert extra_args['Metadata']['project_id'] == project_id
+    
+    # Verificar se o send_message do SQS foi chamado com os parâmetros corretos
+    mock_sqs_client.send_message.assert_called_once()
+    sqs_call_args = mock_sqs_client.send_message.call_args
+    
+    # Verificar argumentos nomeados do SQS
+    sqs_kwargs = sqs_call_args[1]
+    assert sqs_kwargs['QueueUrl'] == 'https://sqs.us-east-1.amazonaws.com/123456789012/test-queue'
+    
+    # Verificar se o MessageBody é um JSON válido contendo o ifc_file_id
+    import json
+    message_body = json.loads(sqs_kwargs['MessageBody'])
+    assert 'ifc_file_id' in message_body
+    assert message_body['ifc_file_id'] == response_data['id']
 
 
 def test_upload_invalid_file_type_fails(client, auth_token, test_project, txt_file_content):
