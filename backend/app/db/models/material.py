@@ -36,5 +36,8 @@ class Material(Base):
     # Relationship to IFCFile
     ifc_file = relationship("IFCFile", back_populates="materials")
     
+    # Relationship to RFQItems
+    rfq_items = relationship("RFQItem", back_populates="material")
+    
     def __repr__(self) -> str:
         return f"<Material(id={self.id}, description='{self.description}', quantity={self.quantity}, unit='{self.unit}', ifc_file_id={self.ifc_file_id})>"

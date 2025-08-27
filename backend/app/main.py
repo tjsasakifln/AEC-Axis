@@ -10,6 +10,7 @@ from backend.app.api.projects import router as projects_router
 from backend.app.api.suppliers import router as suppliers_router
 from backend.app.api.ifc_files import router as ifc_files_router
 from backend.app.api.materials import router as materials_router
+from backend.app.api.rfqs import router as rfqs_router
 from backend.app.api.websockets import router as websockets_router
 
 app = FastAPI(
@@ -26,6 +27,7 @@ app.include_router(projects_router)
 app.include_router(suppliers_router)
 app.include_router(ifc_files_router)
 app.include_router(materials_router)
+app.include_router(rfqs_router)
 app.include_router(websockets_router)
 
 

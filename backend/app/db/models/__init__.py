@@ -7,5 +7,6 @@ from .project import Project
 from .supplier import Supplier
 from .ifc_file import IFCFile
 from .material import Material
+from .rfq import RFQ, RFQItem
 
-__all__ = ["Company", "User", "Project", "Supplier", "IFCFile", "Material"]
+__all__ = ["Company", "User", "Project", "Supplier", "IFCFile", "Material", "RFQ", "RFQItem"]
