@@ -5,6 +5,7 @@ import { projectsApi, ifcFilesApi, rfqsApi, Project, IFCFile, RFQ } from '../ser
 import MaterialsTable from '../components/materials-table'
 import SupplierSelectionModal from '../components/supplier-selection-modal'
 import QuoteDashboard from '../components/quote-dashboard'
+import IFCViewer from '../components/ifc-viewer'
 
 function ProjectDetail() {
   const { projectId } = useParams<{ projectId: string }>()
@@ -25,6 +26,8 @@ function ProjectDetail() {
   const [selectedMaterialIds, setSelectedMaterialIds] = useState<string[]>([])
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false)
   const [selectedRfqId, setSelectedRfqId] = useState<string | null>(null)
+  const [ifcViewerUrl, setIfcViewerUrl] = useState<string | null>(null)
+  const [isLoadingViewerUrl, setIsLoadingViewerUrl] = useState(false)
   const ws = useRef<WebSocket | null>(null)
   const clientId = useRef<string>(Math.random().toString(36).substring(7))
 
@@ -218,6 +221,21 @@ function ProjectDetail() {
       console.error(err)
     } finally {
       // RFQ submission completed
+    }
+  }
+
+  const loadIfcViewerUrl = async (ifcFileId: string) => {
+    try {
+      setIsLoadingViewerUrl(true)
+      setIfcViewerUrl(null)
+      const response = await ifcFilesApi.getViewerUrl(ifcFileId)
+      setIfcViewerUrl(response.url)
+    } catch (err) {
+      console.error('Error loading IFC viewer URL:', err)
+      setMessage('Erro ao carregar URL do visualizador 3D')
+      setMessageType('error')
+    } finally {
+      setIsLoadingViewerUrl(false)
     }
   }
 
@@ -435,13 +453,14 @@ function ProjectDetail() {
                     if (file.status === 'COMPLETED') {
                       setSelectedIFCFile(file)
                       setSelectedMaterialIds([])
+                      loadIfcViewerUrl(file.id)
                     }
                   }}
                   style={{
                     cursor: file.status === 'COMPLETED' ? 'pointer' : 'default',
                     backgroundColor: selectedIFCFile?.id === file.id ? '#f8f9fa' : 'transparent'
                   }}
-                  title={file.status === 'COMPLETED' ? 'Clique para ver materiais extraídos' : ''}
+                  title={file.status === 'COMPLETED' ? 'Clique para ver materiais extraídos e visualizar em 3D' : ''}
                 >
                   <td>{file.filename}</td>
                   <td>{formatFileSize(file.file_size)}</td>
@@ -469,6 +488,35 @@ function ProjectDetail() {
 
       {!selectedRfqId && selectedIFCFile && selectedIFCFile.status === 'COMPLETED' && (
         <div>
+          {/* IFC 3D Viewer Section */}
+          {ifcViewerUrl && (
+            <div style={{ marginBottom: '30px' }}>
+              <h3 style={{ marginBottom: '15px' }}>Visualizador 3D - {selectedIFCFile.filename}</h3>
+              <IFCViewer
+                ifcFileUrl={ifcViewerUrl}
+                height="500px"
+                width="100%"
+                onLoadStart={() => {
+                  console.log('IFC model loading started')
+                }}
+                onLoadComplete={() => {
+                  console.log('IFC model loaded successfully')
+                }}
+                onLoadError={(error) => {
+                  console.error('IFC model loading error:', error)
+                  setMessage('Erro ao carregar modelo 3D. Verifique se o arquivo IFC é válido.')
+                  setMessageType('error')
+                }}
+              />
+            </div>
+          )}
+          
+          {isLoadingViewerUrl && (
+            <div style={{ marginBottom: '30px', padding: '20px', textAlign: 'center' }}>
+              <div>Carregando visualizador 3D...</div>
+            </div>
+          )}
+          
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
             <h3>Quantitativos Extraídos - {selectedIFCFile.filename}</h3>
             <button

@@ -174,6 +174,11 @@ export const ifcFilesApi = {
       }
     })
     return response.data
+  },
+
+  getViewerUrl: async (ifcFileId: string): Promise<{ url: string }> => {
+    const response = await api.get(`/ifc-files/${ifcFileId}/viewer-url`)
+    return response.data
   }
 }
 

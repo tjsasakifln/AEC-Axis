@@ -11,15 +11,15 @@ interface Project {
   start_date?: string
 }
 
-interface ProjectsResponse {
-  projects: Project[]
-  total_count: number
-  total_pages: number
-  current_page: number
-  limit: number
-  has_next: boolean
-  has_previous: boolean
-}
+// interface ProjectsResponse {
+//   projects: Project[]
+//   total_count: number
+//   total_pages: number
+//   current_page: number
+//   limit: number
+//   has_next: boolean
+//   has_previous: boolean
+// }
 
 interface ProjectSummary {
   total_projects: number
@@ -50,7 +50,7 @@ function Projects() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-  const [totalCount, setTotalCount] = useState(0)
+  const [, setTotalCount] = useState(0)
   const [limit] = useState(10)
   
   const { user, logout } = useAuth()
