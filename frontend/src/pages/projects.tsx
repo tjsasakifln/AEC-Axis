@@ -11,6 +11,22 @@ interface Project {
   start_date?: string
 }
 
+interface ProjectsResponse {
+  projects: Project[]
+  total_count: number
+  total_pages: number
+  current_page: number
+  limit: number
+  has_next: boolean
+  has_previous: boolean
+}
+
+interface ProjectSummary {
+  total_projects: number
+  active_rfqs: number
+  completed_projects: number
+}
+
 interface CreateProjectRequest {
   name: string
   address?: string
@@ -19,18 +35,35 @@ interface CreateProjectRequest {
 
 function Projects() {
   const [projects, setProjects] = useState<Project[]>([])
+  const [projectsSummary, setProjectsSummary] = useState<ProjectSummary | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  
+  // Search and filter state
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const [limit] = useState(10)
+  
   const { user, logout } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
     loadProjects()
+    loadProjectsSummary()
   }, [])
+
+  useEffect(() => {
+    loadProjects()
+  }, [searchTerm, statusFilter, currentPage])
 
   useEffect(() => {
     const handleClickOutside = () => {
@@ -48,33 +81,94 @@ function Projects() {
   const loadProjects = async () => {
     try {
       setIsLoading(true)
-      // Simular carregamento de projetos
-      await new Promise(resolve => setTimeout(resolve, 1000))
       
-      // Projetos de demonstração
-      const demoProjects: Project[] = [
+      // Construir parâmetros de query
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: limit.toString()
+      })
+      
+      if (searchTerm.trim()) {
+        params.append('search', searchTerm.trim())
+      }
+      
+      if (statusFilter) {
+        params.append('status', statusFilter)
+      }
+      
+      // Simular chamada da API (substituir pela chamada real posteriormente)
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // Projetos de demonstração filtrados
+      let demoProjects: Project[] = [
         {
           id: '1',
           name: 'Galpão Industrial Santos',
-          status: 'Em Andamento',
+          status: 'OPEN',
           created_at: new Date().toISOString(),
           address: 'Santos, SP'
         },
         {
           id: '2',
-          name: 'Centro de Distribuição Campinas',
-          status: 'Planejamento',
+          name: 'Centro de Distribuição Campinas', 
+          status: 'CLOSED',
           created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
           address: 'Campinas, SP'
+        },
+        {
+          id: '3',
+          name: 'Escritório Silva & Associates',
+          status: 'OPEN',
+          created_at: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+          address: 'Rua Silva, 123, São Paulo, SP'
         }
       ]
       
-      setProjects(demoProjects)
+      // Aplicar filtros localmente para demonstração
+      if (searchTerm.trim()) {
+        demoProjects = demoProjects.filter(project => 
+          project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (project.address && project.address.toLowerCase().includes(searchTerm.toLowerCase()))
+        )
+      }
+      
+      if (statusFilter) {
+        demoProjects = demoProjects.filter(project => project.status === statusFilter)
+      }
+      
+      // Simular paginação
+      const totalCount = demoProjects.length
+      const totalPages = Math.ceil(totalCount / limit)
+      const startIndex = (currentPage - 1) * limit
+      const endIndex = startIndex + limit
+      const paginatedProjects = demoProjects.slice(startIndex, endIndex)
+      
+      setProjects(paginatedProjects)
+      setTotalCount(totalCount)
+      setTotalPages(totalPages)
+      
     } catch (err) {
       setError('Erro ao carregar projetos')
       console.error(err)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const loadProjectsSummary = async () => {
+    try {
+      // Simular carregamento do resumo (substituir pela chamada real posteriormente)
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      const demoSummary: ProjectSummary = {
+        total_projects: 15,
+        active_rfqs: 4,
+        completed_projects: 5
+      }
+      
+      setProjectsSummary(demoSummary)
+    } catch (err) {
+      console.error('Erro ao carregar resumo dos projetos:', err)
     }
   }
 
@@ -130,6 +224,20 @@ function Projects() {
     }
   }
 
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value)
+    setCurrentPage(1) // Reset to first page when searching
+  }
+
+  const handleStatusFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setStatusFilter(e.target.value)
+    setCurrentPage(1) // Reset to first page when filtering
+  }
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage)
+  }
+
   const handleMenuToggle = (projectId: string, e: React.MouseEvent) => {
     e.stopPropagation()
     setOpenMenuId(openMenuId === projectId ? null : projectId)
@@ -173,6 +281,54 @@ function Projects() {
         </div>
       </header>
 
+      {/* Project Summary Cards */}
+      {projectsSummary && (
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+          gap: '20px', 
+          margin: '30px',
+          marginBottom: '40px'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            padding: '20px',
+            borderRadius: '12px',
+            textAlign: 'center'
+          }}>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '2rem', fontWeight: 'bold' }}>
+              {projectsSummary.total_projects}
+            </h3>
+            <p style={{ margin: 0, opacity: 0.9 }}>Total de Projetos</p>
+          </div>
+          <div style={{
+            background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+            color: 'white',
+            padding: '20px',
+            borderRadius: '12px',
+            textAlign: 'center'
+          }}>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '2rem', fontWeight: 'bold' }}>
+              {projectsSummary.active_rfqs}
+            </h3>
+            <p style={{ margin: 0, opacity: 0.9 }}>RFQs Ativas</p>
+          </div>
+          <div style={{
+            background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+            color: 'white',
+            padding: '20px',
+            borderRadius: '12px',
+            textAlign: 'center'
+          }}>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '2rem', fontWeight: 'bold' }}>
+              {projectsSummary.completed_projects}
+            </h3>
+            <p style={{ margin: 0, opacity: 0.9 }}>Projetos Concluídos</p>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '30px', marginBottom: '20px' }}>
         <h2 style={{ color: '#4a5568', margin: 0 }}>Meus Projetos</h2>
         <button
@@ -181,6 +337,50 @@ function Projects() {
         >
           + Novo Projeto
         </button>
+      </div>
+
+      {/* Search and Filter Controls */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '20px', 
+        margin: '0 30px 30px 30px',
+        alignItems: 'center'
+      }}>
+        <div style={{ flex: 1 }}>
+          <input
+            type="text"
+            placeholder="Buscar projetos por nome ou endereço..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+            className="form-input"
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              fontSize: '14px'
+            }}
+          />
+        </div>
+        <div style={{ minWidth: '200px' }}>
+          <select
+            value={statusFilter}
+            onChange={handleStatusFilterChange}
+            className="form-input"
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              fontSize: '14px',
+              backgroundColor: 'white'
+            }}
+          >
+            <option value="">Todos os Status</option>
+            <option value="OPEN">Em Aberto</option>
+            <option value="CLOSED">Fechado</option>
+          </select>
+        </div>
       </div>
 
       <div style={{ margin: '0 30px' }}>
@@ -192,131 +392,142 @@ function Projects() {
             <p>Clique em "+ Novo Projeto" para começar.</p>
           </div>
         ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>NOME DO PROJETO</th>
-                <th>STATUS</th>
-                <th>DATA DE CRIAÇÃO</th>
-                <th>AÇÕES</th>
-              </tr>
-            </thead>
-            <tbody>
-              {projects.map((project) => (
-                <tr key={project.id}>
-                  <td>
-                    <strong>{project.name}</strong>
-                    {project.address && <div style={{ color: '#718096', fontSize: '0.9rem' }}>{project.address}</div>}
-                  </td>
-                  <td>
-                    <span style={{ 
-                      background: project.status === 'Em Andamento' ? '#c6f6d5' : '#e2e8f0', 
-                      color: project.status === 'Em Andamento' ? '#22543d' : '#4a5568',
-                      padding: '4px 12px', 
-                      borderRadius: '20px', 
-                      fontSize: '0.85rem',
-                      fontWeight: '500'
-                    }}>
-                      {project.status}
-                    </span>
-                  </td>
-                  <td>{formatDate(project.created_at)}</td>
-                  <td style={{ position: 'relative' }}>
-                    <button
-                      className="btn btn-secondary"
-                      style={{ 
-                        fontSize: '16px', 
-                        padding: '8px 12px',
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#4a5568',
-                        cursor: 'pointer',
-                        borderRadius: '4px'
-                      }}
-                      onClick={(e) => handleMenuToggle(project.id, e)}
-                      aria-label={`Ações do projeto ${project.name}`}
-                      aria-expanded={openMenuId === project.id}
-                      aria-haspopup="true"
-                    >
-                      ⋮
-                    </button>
-                    
-                    {openMenuId === project.id && (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: '100%',
-                          right: '0',
-                          backgroundColor: 'white',
-                          border: '1px solid #e2e8f0',
-                          borderRadius: '8px',
-                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                          zIndex: 10,
-                          minWidth: '150px',
-                          padding: '8px 0'
-                        }}
-                      >
-                        <button
-                          className="menu-item"
-                          style={{
-                            width: '100%',
-                            textAlign: 'left',
-                            padding: '8px 16px',
-                            border: 'none',
-                            background: 'none',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            color: '#4a5568'
-                          }}
-                          onClick={() => handleViewDetails(project.id)}
-                          onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = '#f7fafc'}
-                          onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = 'transparent'}
-                        >
-                          Ver Detalhes
-                        </button>
-                        <button
-                          className="menu-item"
-                          style={{
-                            width: '100%',
-                            textAlign: 'left',
-                            padding: '8px 16px',
-                            border: 'none',
-                            background: 'none',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            color: '#4a5568'
-                          }}
-                          onClick={() => handleEditClick(project)}
-                          onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = '#f7fafc'}
-                          onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = 'transparent'}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          className="menu-item"
-                          style={{
-                            width: '100%',
-                            textAlign: 'left',
-                            padding: '8px 16px',
-                            border: 'none',
-                            background: 'none',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            color: '#e53e3e'
-                          }}
-                          onClick={() => handleArchiveProject(project.id)}
-                          onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = '#f7fafc'}
-                          onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = 'transparent'}
-                        >
-                          Arquivar
-                        </button>
-                      </div>
-                    )}
-                  </td>
+          <>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>NOME DO PROJETO</th>
+                  <th>STATUS</th>
+                  <th>DATA DE CRIAÇÃO</th>
+                  <th>AÇÕES</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {projects.map((project) => (
+                  <tr key={project.id}>
+                    <td>
+                      <strong>{project.name}</strong>
+                      {project.address && <div style={{ color: '#718096', fontSize: '0.9rem' }}>{project.address}</div>}
+                    </td>
+                    <td>
+                      <span style={{ 
+                        background: project.status === 'OPEN' ? '#c6f6d5' : project.status === 'CLOSED' ? '#fed7d7' : '#e2e8f0', 
+                        color: project.status === 'OPEN' ? '#22543d' : project.status === 'CLOSED' ? '#742a2a' : '#4a5568',
+                        padding: '4px 12px', 
+                        borderRadius: '20px', 
+                        fontSize: '0.85rem',
+                        fontWeight: '500'
+                      }}>
+                        {project.status === 'OPEN' ? 'Em Aberto' : project.status === 'CLOSED' ? 'Fechado' : project.status}
+                      </span>
+                    </td>
+                    <td>{formatDate(project.created_at)}</td>
+                    <td style={{ position: 'relative' }}>
+                      <button
+                        className="btn btn-secondary"
+                        style={{ 
+                          fontSize: '16px', 
+                          padding: '8px 12px',
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#4a5568',
+                          cursor: 'pointer',
+                          borderRadius: '4px'
+                        }}
+                        onClick={(e) => handleMenuToggle(project.id, e)}
+                        aria-label={`Ações do projeto ${project.name}`}
+                        aria-expanded={openMenuId === project.id}
+                        aria-haspopup="true"
+                      >
+                        ⋮
+                      </button>
+                      
+                      {openMenuId === project.id && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: '100%',
+                            right: '0',
+                            backgroundColor: 'white',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                            zIndex: 10,
+                            minWidth: '150px',
+                            padding: '8px 0'
+                          }}
+                        >
+                          <button
+                            className="menu-item"
+                            style={{
+                              width: '100%',
+                              textAlign: 'left',
+                              padding: '8px 16px',
+                              border: 'none',
+                              background: 'none',
+                              cursor: 'pointer',
+                              fontSize: '14px',
+                              color: '#4a5568'
+                            }}
+                            onClick={() => handleViewDetails(project.id)}
+                            onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = '#f7fafc'}
+                            onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = 'transparent'}
+                          >
+                            Ver Detalhes
+                          </button>
+                          <button
+                            className="menu-item"
+                            style={{
+                              width: '100%',
+                              textAlign: 'left',
+                              padding: '8px 16px',
+                              border: 'none',
+                              background: 'none',
+                              cursor: 'pointer',
+                              fontSize: '14px',
+                              color: '#4a5568'
+                            }}
+                            onClick={() => handleEditClick(project)}
+                            onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = '#f7fafc'}
+                            onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = 'transparent'}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            className="menu-item"
+                            style={{
+                              width: '100%',
+                              textAlign: 'left',
+                              padding: '8px 16px',
+                              border: 'none',
+                              background: 'none',
+                              cursor: 'pointer',
+                              fontSize: '14px',
+                              color: '#e53e3e'
+                            }}
+                            onClick={() => handleArchiveProject(project.id)}
+                            onMouseEnter={(e) => (e.target as HTMLElement).style.backgroundColor = '#f7fafc'}
+                            onMouseLeave={(e) => (e.target as HTMLElement).style.backgroundColor = 'transparent'}
+                          >
+                            Arquivar
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+              />
+            )}
+          </>
         )}
       </div>
 
@@ -608,6 +819,137 @@ function EditProjectModal({ project, onClose, onEdit }: EditProjectModalProps) {
           </div>
         </form>
       </div>
+    </div>
+  )
+}
+
+interface PaginationProps {
+  currentPage: number
+  totalPages: number
+  onPageChange: (page: number) => void
+}
+
+function Pagination({ currentPage, totalPages, onPageChange }: PaginationProps) {
+  const pages = []
+  const maxVisiblePages = 5
+  
+  // Calculate which pages to show
+  let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2))
+  let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1)
+  
+  // Adjust start if we're near the end
+  if (endPage - startPage + 1 < maxVisiblePages) {
+    startPage = Math.max(1, endPage - maxVisiblePages + 1)
+  }
+  
+  for (let i = startPage; i <= endPage; i++) {
+    pages.push(i)
+  }
+  
+  return (
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      margin: '30px 0',
+      gap: '8px'
+    }}>
+      {/* Previous Button */}
+      <button
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        style={{
+          padding: '8px 12px',
+          border: '1px solid #e2e8f0',
+          borderRadius: '6px',
+          backgroundColor: currentPage === 1 ? '#f7fafc' : 'white',
+          color: currentPage === 1 ? '#a0aec0' : '#4a5568',
+          cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+          fontSize: '14px'
+        }}
+      >
+        ← Anterior
+      </button>
+      
+      {/* Page Numbers */}
+      {startPage > 1 && (
+        <>
+          <button
+            onClick={() => onPageChange(1)}
+            style={{
+              padding: '8px 12px',
+              border: '1px solid #e2e8f0',
+              borderRadius: '6px',
+              backgroundColor: 'white',
+              color: '#4a5568',
+              cursor: 'pointer',
+              fontSize: '14px',
+              minWidth: '40px'
+            }}
+          >
+            1
+          </button>
+          {startPage > 2 && <span style={{ color: '#a0aec0' }}>...</span>}
+        </>
+      )}
+      
+      {pages.map(page => (
+        <button
+          key={page}
+          onClick={() => onPageChange(page)}
+          style={{
+            padding: '8px 12px',
+            border: '1px solid #e2e8f0',
+            borderRadius: '6px',
+            backgroundColor: page === currentPage ? '#667eea' : 'white',
+            color: page === currentPage ? 'white' : '#4a5568',
+            cursor: 'pointer',
+            fontSize: '14px',
+            minWidth: '40px',
+            fontWeight: page === currentPage ? '600' : 'normal'
+          }}
+        >
+          {page}
+        </button>
+      ))}
+      
+      {endPage < totalPages && (
+        <>
+          {endPage < totalPages - 1 && <span style={{ color: '#a0aec0' }}>...</span>}
+          <button
+            onClick={() => onPageChange(totalPages)}
+            style={{
+              padding: '8px 12px',
+              border: '1px solid #e2e8f0',
+              borderRadius: '6px',
+              backgroundColor: 'white',
+              color: '#4a5568',
+              cursor: 'pointer',
+              fontSize: '14px',
+              minWidth: '40px'
+            }}
+          >
+            {totalPages}
+          </button>
+        </>
+      )}
+      
+      {/* Next Button */}
+      <button
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        style={{
+          padding: '8px 12px',
+          border: '1px solid #e2e8f0',
+          borderRadius: '6px',
+          backgroundColor: currentPage === totalPages ? '#f7fafc' : 'white',
+          color: currentPage === totalPages ? '#a0aec0' : '#4a5568',
+          cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+          fontSize: '14px'
+        }}
+      >
+        Próximo →
+      </button>
     </div>
   )
 }

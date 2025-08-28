@@ -4,9 +4,10 @@ Projects API endpoints for AEC Axis.
 This module contains endpoints for managing construction projects.
 """
 import uuid
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List, Optional, Dict, Any
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import func, or_
 
 from app.db import get_db
 from app.db.models.project import Project
@@ -52,26 +53,106 @@ def create_project(
     return db_project
 
 
-@router.get("/", response_model=List[ProjectResponse])
+@router.get("/", response_model=Dict[str, Any])
 def get_projects(
+    search: Optional[str] = Query(None, description="Search term for project name or address"),
+    status: Optional[str] = Query(None, description="Filter by RFQ status (OPEN, CLOSED, etc.)"),
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(10, ge=1, le=100, description="Number of items per page"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
-) -> List[ProjectResponse]:
+) -> Dict[str, Any]:
     """
-    Get all projects for the authenticated user's company.
+    Get all projects for the authenticated user's company with search, filtering, and pagination.
+    
+    Args:
+        search: Optional search term for project name or address
+        status: Optional filter by RFQ status
+        page: Page number (1-based)
+        limit: Number of items per page
+        current_user: Current authenticated user
+        db: Database session
+        
+    Returns:
+        Dictionary containing projects list, total count, and pagination info
+    """
+    # Base query filtered by company
+    query = db.query(Project).filter(
+        Project.company_id == current_user.company_id
+    )
+    
+    # Apply search filter
+    if search:
+        search_filter = or_(
+            Project.name.ilike(f"%{search}%"),
+            Project.address.ilike(f"%{search}%")
+        )
+        query = query.filter(search_filter)
+    
+    # Apply status filter (filter projects that have RFQs with specific status)
+    if status:
+        query = query.join(RFQ).filter(RFQ.status == status.upper())
+    
+    # Get total count before pagination
+    total_count = query.count()
+    
+    # Apply pagination
+    offset = (page - 1) * limit
+    projects = query.offset(offset).limit(limit).all()
+    
+    # Calculate pagination info
+    total_pages = (total_count + limit - 1) // limit
+    
+    return {
+        "projects": projects,
+        "total_count": total_count,
+        "total_pages": total_pages,
+        "current_page": page,
+        "limit": limit,
+        "has_next": page < total_pages,
+        "has_previous": page > 1
+    }
+
+
+@router.get("/summary", response_model=Dict[str, int])
+def get_projects_summary(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> Dict[str, int]:
+    """
+    Get summary statistics for projects belonging to the authenticated user's company.
     
     Args:
         current_user: Current authenticated user
         db: Database session
         
     Returns:
-        List of projects belonging to the user's company
+        Dictionary containing KPI metrics for the company's projects
     """
-    projects = db.query(Project).filter(
-        Project.company_id == current_user.company_id
-    ).all()
+    company_id = current_user.company_id
     
-    return projects
+    # Total projects
+    total_projects = db.query(Project).filter(
+        Project.company_id == company_id
+    ).count()
+    
+    # Active RFQs (RFQs with OPEN status)
+    active_rfqs = db.query(RFQ).join(Project).filter(
+        Project.company_id == company_id,
+        RFQ.status == "OPEN"
+    ).count()
+    
+    # Projects with completed RFQs (projects that have at least one CLOSED RFQ)
+    completed_projects = db.query(Project).join(RFQ).filter(
+        Project.company_id == company_id,
+        RFQ.status == "CLOSED"
+    ).distinct().count()
+    
+    return {
+        "total_projects": total_projects,
+        "active_rfqs": active_rfqs,
+        "completed_projects": completed_projects
+    }
 
 
 @router.get("/{project_id}", response_model=ProjectResponse)

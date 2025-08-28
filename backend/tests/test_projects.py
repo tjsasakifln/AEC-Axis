@@ -3,6 +3,8 @@ import uuid
 from datetime import date
 from app.db.models.user import User
 from app.db.models.company import Company
+from app.db.models.project import Project
+from app.db.models.rfq import RFQ
 from app.security import hash_password
 
 
@@ -153,13 +155,14 @@ def test_get_projects_success(client, auth_token):
     assert response.status_code == 200
     response_data = response.json()
     
-    # Verificar se a resposta é uma lista
-    assert isinstance(response_data, list)
+    # Verificar se a resposta tem a nova estrutura
+    assert isinstance(response_data, dict)
+    assert "projects" in response_data
     # Verificar se contém o número correto de projetos
-    assert len(response_data) == len(projects_data)
+    assert len(response_data["projects"]) == len(projects_data)
     
     # Verificar se os projetos criados estão na lista
-    project_names = [project["name"] for project in response_data]
+    project_names = [project["name"] for project in response_data["projects"]]
     for project_data in projects_data:
         assert project_data["name"] in project_names
 
@@ -243,8 +246,9 @@ def test_get_projects_isolates_by_company(client, db_session):
     assert response.status_code == 200
     projects_user1 = response.json()
     
-    assert len(projects_user1) == len(company1_projects)
-    project_names = [project["name"] for project in projects_user1]
+    assert "projects" in projects_user1
+    assert len(projects_user1["projects"]) == len(company1_projects)
+    project_names = [project["name"] for project in projects_user1["projects"]]
     for project_data in company1_projects:
         assert project_data["name"] in project_names
     
@@ -535,3 +539,254 @@ def test_delete_project_wrong_company_fails(client, db_session):
     assert response.status_code == 404
     response_data = response.json()
     assert "detail" in response_data
+
+
+def test_get_projects_with_search_success(client, auth_token, db_session, create_test_user):
+    """Teste para verificar busca por projetos com termo de pesquisa"""
+    # Criar projetos de teste
+    projects_data = [
+        {"name": "Casa Silva", "address": "Rua das Flores 123"},
+        {"name": "Apartamento Santos", "address": "Avenida Principal 456"},
+        {"name": "Escritório", "address": "Rua Silva 789"}
+    ]
+    
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    created_projects = []
+    
+    # Criar os projetos
+    for project_data in projects_data:
+        response = client.post("/projects", json=project_data, headers=headers)
+        assert response.status_code == 201
+        created_projects.append(response.json())
+    
+    # Buscar por "Silva" (deve encontrar 2 projetos)
+    response = client.get("/projects?search=Silva", headers=headers)
+    assert response.status_code == 200
+    response_data = response.json()
+    
+    assert "projects" in response_data
+    assert len(response_data["projects"]) == 2
+    
+    project_names = [project["name"] for project in response_data["projects"]]
+    assert "Casa Silva" in project_names
+    assert "Escritório" in project_names
+    assert "Apartamento Santos" not in project_names
+
+
+def test_get_projects_with_pagination_success(client, auth_token, db_session, create_test_user):
+    """Teste para verificar paginação de projetos"""
+    # Criar 15 projetos de teste
+    projects_data = [{"name": f"Projeto {i}"} for i in range(1, 16)]
+    
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    
+    # Criar os projetos
+    for project_data in projects_data:
+        response = client.post("/projects", json=project_data, headers=headers)
+        assert response.status_code == 201
+    
+    # Testar primeira página (limit=5)
+    response = client.get("/projects?page=1&limit=5", headers=headers)
+    assert response.status_code == 200
+    response_data = response.json()
+    
+    assert "projects" in response_data
+    assert len(response_data["projects"]) == 5
+    assert response_data["total_count"] == 15
+    assert response_data["total_pages"] == 3
+    assert response_data["current_page"] == 1
+    assert response_data["limit"] == 5
+    assert response_data["has_next"] is True
+    assert response_data["has_previous"] is False
+    
+    # Testar segunda página
+    response = client.get("/projects?page=2&limit=5", headers=headers)
+    assert response.status_code == 200
+    response_data = response.json()
+    
+    assert len(response_data["projects"]) == 5
+    assert response_data["current_page"] == 2
+    assert response_data["has_next"] is True
+    assert response_data["has_previous"] is True
+    
+    # Testar última página
+    response = client.get("/projects?page=3&limit=5", headers=headers)
+    assert response.status_code == 200
+    response_data = response.json()
+    
+    assert len(response_data["projects"]) == 5
+    assert response_data["current_page"] == 3
+    assert response_data["has_next"] is False
+    assert response_data["has_previous"] is True
+
+
+def test_get_projects_with_status_filter_success(client, auth_token, db_session, create_test_user):
+    """Teste para verificar filtro por status de RFQ"""
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    
+    # Criar projetos
+    project1_data = {"name": "Projeto com RFQ aberto"}
+    response = client.post("/projects", json=project1_data, headers=headers)
+    assert response.status_code == 201
+    project1 = response.json()
+    
+    project2_data = {"name": "Projeto com RFQ fechado"}
+    response = client.post("/projects", json=project2_data, headers=headers)
+    assert response.status_code == 201
+    project2 = response.json()
+    
+    project3_data = {"name": "Projeto sem RFQ"}
+    response = client.post("/projects", json=project3_data, headers=headers)
+    assert response.status_code == 201
+    project3 = response.json()
+    
+    # Criar RFQs no banco diretamente
+    rfq1 = RFQ(
+        status="OPEN",
+        project_id=uuid.UUID(project1["id"])
+    )
+    db_session.add(rfq1)
+    
+    rfq2 = RFQ(
+        status="CLOSED",
+        project_id=uuid.UUID(project2["id"])
+    )
+    db_session.add(rfq2)
+    
+    db_session.commit()
+    
+    # Filtrar por status OPEN
+    response = client.get("/projects?status=OPEN", headers=headers)
+    assert response.status_code == 200
+    response_data = response.json()
+    
+    assert "projects" in response_data
+    assert len(response_data["projects"]) == 1
+    assert response_data["projects"][0]["name"] == "Projeto com RFQ aberto"
+    
+    # Filtrar por status CLOSED
+    response = client.get("/projects?status=CLOSED", headers=headers)
+    assert response.status_code == 200
+    response_data = response.json()
+    
+    assert len(response_data["projects"]) == 1
+    assert response_data["projects"][0]["name"] == "Projeto com RFQ fechado"
+
+
+def test_get_projects_summary_success(client, auth_token, db_session, create_test_user):
+    """Teste para verificar endpoint de resumo de projetos"""
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    
+    # Criar projetos
+    projects_data = [
+        {"name": "Projeto 1"},
+        {"name": "Projeto 2"},
+        {"name": "Projeto 3"}
+    ]
+    
+    created_projects = []
+    for project_data in projects_data:
+        response = client.post("/projects", json=project_data, headers=headers)
+        assert response.status_code == 201
+        created_projects.append(response.json())
+    
+    # Criar RFQs com diferentes status
+    rfq1 = RFQ(status="OPEN", project_id=uuid.UUID(created_projects[0]["id"]))
+    rfq2 = RFQ(status="OPEN", project_id=uuid.UUID(created_projects[1]["id"]))
+    rfq3 = RFQ(status="CLOSED", project_id=uuid.UUID(created_projects[2]["id"]))
+    
+    db_session.add_all([rfq1, rfq2, rfq3])
+    db_session.commit()
+    
+    # Buscar resumo
+    response = client.get("/projects/summary", headers=headers)
+    assert response.status_code == 200
+    response_data = response.json()
+    
+    assert "total_projects" in response_data
+    assert "active_rfqs" in response_data
+    assert "completed_projects" in response_data
+    
+    assert response_data["total_projects"] == 3
+    assert response_data["active_rfqs"] == 2
+    assert response_data["completed_projects"] == 1
+
+
+def test_get_projects_summary_isolates_by_company(client, db_session):
+    """Teste para verificar isolamento por empresa no endpoint summary"""
+    # Criar duas empresas
+    company1 = Company(name="Company 1", cnpj="11.111.111/0001-11", address="Address 1")
+    company2 = Company(name="Company 2", cnpj="22.222.222/0002-22", address="Address 2")
+    
+    db_session.add_all([company1, company2])
+    db_session.commit()
+    db_session.refresh(company1)
+    db_session.refresh(company2)
+    
+    # Criar usuários para cada empresa
+    user1 = User(
+        email="user1@company1.com",
+        hashed_password=hash_password("senha123"),
+        full_name="User 1",
+        company_id=company1.id
+    )
+    user2 = User(
+        email="user2@company2.com",
+        hashed_password=hash_password("senha123"),
+        full_name="User 2",
+        company_id=company2.id
+    )
+    
+    db_session.add_all([user1, user2])
+    db_session.commit()
+    
+    # Obter tokens
+    login_data1 = {"email": "user1@company1.com", "password": "senha123"}
+    response1 = client.post("/auth/token", json=login_data1)
+    token1 = response1.json()["access_token"]
+    headers1 = {"Authorization": f"Bearer {token1}"}
+    
+    login_data2 = {"email": "user2@company2.com", "password": "senha123"}
+    response2 = client.post("/auth/token", json=login_data2)
+    token2 = response2.json()["access_token"]
+    headers2 = {"Authorization": f"Bearer {token2}"}
+    
+    # Criar projetos para empresa 1
+    for i in range(2):
+        project_data = {"name": f"Company 1 Project {i+1}"}
+        response = client.post("/projects", json=project_data, headers=headers1)
+        assert response.status_code == 201
+        
+        # Criar RFQ para o projeto
+        project = response.json()
+        rfq = RFQ(status="OPEN", project_id=uuid.UUID(project["id"]))
+        db_session.add(rfq)
+    
+    # Criar projetos para empresa 2
+    project_data = {"name": "Company 2 Project 1"}
+    response = client.post("/projects", json=project_data, headers=headers2)
+    assert response.status_code == 201
+    
+    project = response.json()
+    rfq = RFQ(status="CLOSED", project_id=uuid.UUID(project["id"]))
+    db_session.add(rfq)
+    
+    db_session.commit()
+    
+    # Verificar resumo da empresa 1
+    response = client.get("/projects/summary", headers=headers1)
+    assert response.status_code == 200
+    summary1 = response.json()
+    
+    assert summary1["total_projects"] == 2
+    assert summary1["active_rfqs"] == 2
+    assert summary1["completed_projects"] == 0
+    
+    # Verificar resumo da empresa 2
+    response = client.get("/projects/summary", headers=headers2)
+    assert response.status_code == 200
+    summary2 = response.json()
+    
+    assert summary2["total_projects"] == 1
+    assert summary2["active_rfqs"] == 0
+    assert summary2["completed_projects"] == 1
