@@ -1,0 +1,4 @@
+This is not an IFC file.
+It's just a plain text file used for testing file type validation.
+
+The system should reject this file when attempting to upload it as an IFC file.

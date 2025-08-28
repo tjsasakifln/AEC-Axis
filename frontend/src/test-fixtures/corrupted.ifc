@@ -1,0 +1,17 @@
+ISO-10303-21;
+HEADER;
+FILE_DESCRIPTION (('ViewDefinition [CoordinationView]'), '2;1');
+FILE_NAME ('corrupted.ifc', '2025-08-28T10:00:00', ('Test'), ('AEC Axis'), 'Test', 'Test', '');
+FILE_SCHEMA (('IFC4'));
+ENDSEC;
+
+DATA;
+#1 = IFCPROJECT('corrupted',#2,'Corrupted File',$,$,$,$,$,#3);
+#2 = IFCOWNERHISTORY(#4,#5,$,.NOCHANGE.,$,$,$,1630000000);
+
+// This file is intentionally corrupted with invalid syntax and missing references
+#MISSING_ID = IFCNOTHING();
+#999 = IFCINVALID(#NONEXISTENT,$,$);
+
+ENDSEC;
+// Missing END-ISO-10303-21
