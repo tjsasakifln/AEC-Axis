@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
 import { projectsApi, ifcFilesApi, rfqsApi, Project, IFCFile, RFQ } from '../services/api'
@@ -6,6 +6,14 @@ import MaterialsTable from '../components/materials-table'
 import SupplierSelectionModal from '../components/supplier-selection-modal'
 import QuoteDashboard from '../components/quote-dashboard'
 import IFCViewer from '../components/ifc-viewer'
+import AdvancedUploadArea from '../components/upload/AdvancedUploadArea'
+import UploadProgressDisplay from '../components/upload/UploadProgressDisplay'
+import ProcessingTimeline from '../components/upload/ProcessingTimeline'
+import FilePreviewModal from '../components/upload/FilePreviewModal'
+import ErrorDisplay from '../components/upload/ErrorDisplay'
+import { useFileUpload } from '../hooks/useFileUpload'
+import { useIFCPreview } from '../hooks/useIFCPreview'
+import { IFCPreviewData, ProcessingStage } from '../types/upload.types'
 
 function ProjectDetail() {
   const { projectId } = useParams<{ projectId: string }>()
@@ -20,9 +28,30 @@ function ProjectDetail() {
   const [isLoadingRfqs, setIsLoadingRfqs] = useState(true)
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState<'error' | 'success'>('error')
-  const [isUploading, setIsUploading] = useState(false)
-  const [isDragOver, setIsDragOver] = useState(false)
   const [selectedIFCFile, setSelectedIFCFile] = useState<IFCFile | null>(null)
+  
+  // Enhanced upload state
+  const [showPreviewModal, setShowPreviewModal] = useState(false)
+  const [currentFile, setCurrentFile] = useState<File | null>(null)
+  const [previewData, setPreviewData] = useState<IFCPreviewData | null>(null)
+  const [processingStages, setProcessingStages] = useState<ProcessingStage[]>([])
+  
+  // Upload and preview hooks
+  const { uploadState, uploadFile, retryUpload, cancelUpload, resetUploadState } = useFileUpload({
+    onComplete: (file: IFCFile) => {
+      setIfcFiles([...ifcFiles, file])
+      setMessage('Upload concluído com sucesso!')
+      setMessageType('success')
+      setTimeout(() => setMessage(''), 5000)
+      resetUploadState()
+    },
+    onError: (error) => {
+      console.error('Upload error:', error)
+      // Error display is handled by the ErrorDisplay component
+    }
+  })
+  
+  const { isAnalyzing, analyzeFile } = useIFCPreview()
   const [selectedMaterialIds, setSelectedMaterialIds] = useState<string[]>([])
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false)
   const [selectedRfqId, setSelectedRfqId] = useState<string | null>(null)
@@ -140,50 +169,59 @@ function ProjectDetail() {
     }
   }
 
-  const handleFileUpload = async (files: FileList | null) => {
+  // Enhanced upload handlers
+  const handleFileSelect = async (files: FileList) => {
     if (!files || files.length === 0) return
-
+    
     const file = files[0]
-    if (!file.name.toLowerCase().endsWith('.ifc')) {
-      setMessage('Por favor, selecione apenas arquivos IFC')
-      setMessageType('error')
-      return
-    }
-
+    setCurrentFile(file)
+    setMessage('')
+    
     try {
-      setIsUploading(true)
-      setMessage('')
-      const uploadedFile = await ifcFilesApi.upload(projectId!, file)
-      setIfcFiles([...ifcFiles, uploadedFile])
-    } catch (err) {
-      setMessage('Erro ao fazer upload do arquivo')
+      // Analyze file and show preview modal
+      const preview = await analyzeFile(file)
+      setPreviewData(preview)
+      setShowPreviewModal(true)
+    } catch (error) {
+      setMessage('Erro ao analisar arquivo IFC')
       setMessageType('error')
-      console.error(err)
-    } finally {
-      setIsUploading(false)
+      console.error('File analysis error:', error)
     }
   }
 
-  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    setIsDragOver(false)
-    handleFileUpload(e.dataTransfer.files)
-  }, [projectId, ifcFiles])
+  const handleUploadConfirm = async () => {
+    if (!currentFile || !projectId) return
+    
+    setShowPreviewModal(false)
+    
+    // Initialize processing stages
+    const stages: ProcessingStage[] = [
+      { id: '1', name: 'Uploading file', status: 'active', startTime: new Date() },
+      { id: '2', name: 'Validating IFC structure', status: 'pending' },
+      { id: '3', name: 'Extracting building elements', status: 'pending' },
+      { id: '4', name: 'Processing complete', status: 'pending' }
+    ]
+    setProcessingStages(stages)
+    
+    try {
+      await uploadFile(currentFile, projectId)
+    } catch (error) {
+      // Error handling is done by the upload hook and ErrorDisplay component
+      console.error('Upload failed:', error)
+    }
+  }
 
-  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    setIsDragOver(true)
-  }, [])
-
-  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    setIsDragOver(false)
-  }, [])
+  const handleUploadCancel = () => {
+    setShowPreviewModal(false)
+    setCurrentFile(null)
+    setPreviewData(null)
+  }
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('pt-BR')
   }
 
+  // Import formatFileSize from utils instead
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 B'
     const k = 1024
@@ -381,46 +419,41 @@ function ProjectDetail() {
       {!selectedRfqId && (
         <div style={{ marginBottom: '30px' }}>
           <h3 style={{ marginBottom: '15px' }}>Upload de Arquivos IFC</h3>
-        
-        <div
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          style={{
-            border: `2px dashed ${isDragOver ? '#007bff' : '#ccc'}`,
-            borderRadius: '8px',
-            padding: '40px',
-            textAlign: 'center',
-            backgroundColor: isDragOver ? '#f8f9fa' : '#fafafa',
-            cursor: 'pointer',
-            transition: 'all 0.3s ease'
-          }}
-        >
-          {isUploading ? (
-            <div>
-              <div>Enviando arquivo...</div>
-            </div>
-          ) : (
-            <div>
-              <div style={{ marginBottom: '10px', fontSize: '18px', color: '#666' }}>
-                Arraste e solte um arquivo IFC aqui
-              </div>
-              <div style={{ marginBottom: '15px', color: '#888' }}>
-                ou
-              </div>
-              <input
-                type="file"
-                accept=".ifc"
-                onChange={(e) => handleFileUpload(e.target.files)}
-                style={{ display: 'none' }}
-                id="file-input"
+          
+          {/* Enhanced Upload Area */}
+          <AdvancedUploadArea
+            onFileSelect={handleFileSelect}
+            disabled={uploadState.status === 'uploading'}
+          />
+          
+          {/* Upload Progress Display */}
+          {uploadState.status === 'uploading' && uploadState.progress && (
+            <div style={{ marginTop: '20px' }}>
+              <UploadProgressDisplay 
+                progress={uploadState.progress}
+                fileName={currentFile?.name}
+                onCancel={uploadState.canCancel ? cancelUpload : undefined}
               />
-              <label htmlFor="file-input" className="btn">
-                Selecionar Arquivo
-              </label>
             </div>
           )}
-        </div>
+          
+          {/* Processing Timeline */}
+          {(uploadState.status === 'uploading' || uploadState.status === 'processing') && processingStages.length > 0 && (
+            <div style={{ marginTop: '20px' }}>
+              <ProcessingTimeline stages={processingStages} />
+            </div>
+          )}
+          
+          {/* Upload Error Display */}
+          {uploadState.status === 'error' && uploadState.error && (
+            <div style={{ marginTop: '20px' }}>
+              <ErrorDisplay 
+                error={uploadState.error}
+                onRetry={uploadState.canRetry ? retryUpload : undefined}
+                onDismiss={() => resetUploadState()}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -550,6 +583,15 @@ function ProjectDetail() {
           selectedMaterialCount={selectedMaterialIds.length}
         />
       )}
+      
+      {/* File Preview Modal */}
+      <FilePreviewModal
+        isOpen={showPreviewModal}
+        previewData={previewData}
+        onConfirm={handleUploadConfirm}
+        onCancel={handleUploadCancel}
+        isAnalyzing={isAnalyzing}
+      />
     </div>
   )
 }
