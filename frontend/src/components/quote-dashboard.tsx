@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react'
 import { rfqsApi, QuoteDashboardData, DashboardMaterial, DashboardQuoteItem } from '../services/api'
+import { useRealtimeQuotes } from '../hooks/useRealtimeQuotes'
+import NotificationToast from './NotificationToast'
+import PriceTrendMini from './PriceTrendMini'
+import CountdownTimer from './CountdownTimer'
 
 interface QuoteDashboardProps {
   rfqId: string
@@ -10,6 +14,18 @@ function QuoteDashboard({ rfqId, onClose }: QuoteDashboardProps) {
   const [dashboardData, setDashboardData] = useState<QuoteDashboardData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  
+  // Real-time features
+  const { 
+    priceHistory, 
+    onlineSuppliers, 
+    notifications, 
+    connectionStatus,
+    autoRefreshEnabled,
+    dismissNotification,
+    markNotificationRead,
+    toggleAutoRefresh 
+  } = useRealtimeQuotes(rfqId)
 
   useEffect(() => {
     loadDashboardData()
@@ -100,7 +116,27 @@ function QuoteDashboard({ rfqId, onClose }: QuoteDashboardProps) {
     <div style={{ padding: '20px' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
         <div>
-          <h2>Dashboard Comparativo de Cotações</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+            <h2 style={{ margin: 0 }}>Dashboard Comparativo de Cotações</h2>
+            
+            {/* Connection Status Indicator */}
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px',
+              fontSize: '12px',
+              color: connectionStatus === 'connected' ? '#28a745' : '#6c757d'
+            }}>
+              <div style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                backgroundColor: connectionStatus === 'connected' ? '#28a745' : '#6c757d'
+              }} />
+              {connectionStatus === 'connected' ? 'Tempo Real' : connectionStatus === 'connecting' ? 'Conectando...' : 'Desconectado'}
+            </div>
+          </div>
+          
           <p style={{ margin: '5px 0', color: '#666' }}>
             Projeto: {dashboardData.project.name}
           </p>
@@ -109,11 +145,64 @@ function QuoteDashboard({ rfqId, onClose }: QuoteDashboardProps) {
               {dashboardData.project.address}
             </p>
           )}
+          
+          {/* Countdown Timer for RFQ deadline */}
+          <div style={{ marginTop: '8px' }}>
+            <CountdownTimer 
+              deadline={new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)} // 7 days from now as example
+              size="small"
+              onWarning={(hours) => {
+                console.log(`Deadline warning: ${hours} hours remaining`)
+              }}
+              onExpired={() => {
+                console.log('RFQ deadline expired')
+              }}
+            />
+          </div>
         </div>
-        <button onClick={onClose} className="btn btn-secondary">
-          ✕ Fechar
-        </button>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Auto-refresh Toggle */}
+          <button
+            onClick={toggleAutoRefresh}
+            style={{
+              padding: '6px 12px',
+              fontSize: '12px',
+              border: '1px solid #dee2e6',
+              borderRadius: '4px',
+              backgroundColor: autoRefreshEnabled ? '#28a745' : '#f8f9fa',
+              color: autoRefreshEnabled ? 'white' : '#666',
+              cursor: 'pointer'
+            }}
+          >
+            {autoRefreshEnabled ? '⏸ Pausar' : '▶ Retomar'}
+          </button>
+          
+          <button onClick={onClose} className="btn btn-secondary">
+            ✕ Fechar
+          </button>
+        </div>
       </header>
+
+      {/* Fixed Position Notification Area */}
+      <div style={{ 
+        position: 'fixed', 
+        top: '20px', 
+        right: '20px', 
+        zIndex: 1000,
+        pointerEvents: 'none'
+      }}>
+        <div style={{ pointerEvents: 'auto' }}>
+          {notifications.filter(n => !n.read).slice(0, 3).map(notification => (
+            <NotificationToast 
+              key={notification.id} 
+              notification={notification}
+              onDismiss={dismissNotification}
+              onMarkRead={markNotificationRead}
+            />
+          ))}
+        </div>
+      </div>
 
       {suppliers.length === 0 ? (
         <div className="empty-state">
@@ -141,7 +230,20 @@ function QuoteDashboard({ rfqId, onClose }: QuoteDashboardProps) {
                       textAlign: 'center'
                     }}
                   >
-                    <div style={{ fontWeight: 'bold' }}>{supplier.name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                      <span style={{ fontWeight: 'bold' }}>{supplier.name}</span>
+                      {/* Online Status Indicator */}
+                      <div 
+                        style={{ 
+                          width: '8px', 
+                          height: '8px', 
+                          borderRadius: '50%', 
+                          backgroundColor: onlineSuppliers.has(supplier.id) ? '#28a745' : '#6c757d',
+                          flexShrink: 0
+                        }}
+                        title={onlineSuppliers.has(supplier.id) ? 'Fornecedor online' : 'Fornecedor offline'}
+                      />
+                    </div>
                     <div style={{ fontSize: '12px', color: '#666', fontWeight: 'normal' }}>
                       {supplier.cnpj}
                     </div>
@@ -186,6 +288,22 @@ function QuoteDashboard({ rfqId, onClose }: QuoteDashboardProps) {
                               }}>
                                 {formatCurrency(quote.price)}
                               </div>
+                              
+                              {/* Price Trend Mini Chart */}
+                              <div style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center', 
+                                marginBottom: '6px' 
+                              }}>
+                                <PriceTrendMini
+                                  priceHistory={priceHistory.get(material.id) || []}
+                                  currentPrice={quote.price}
+                                  width={60}
+                                  height={20}
+                                />
+                              </div>
+                              
                               <div style={{ 
                                 fontSize: '12px', 
                                 color: '#666',

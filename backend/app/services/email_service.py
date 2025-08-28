@@ -28,11 +28,11 @@ def send_rfq_email(supplier_email: str, supplier_name: str, quote_link: str, pro
     logger.info(f"Projeto: {project_name}")
     logger.info(f"Link de cotação: {quote_link}")
     
-    print(f"=== EMAIL RFQ ===")
+    print("=== EMAIL RFQ ===")
     print(f"Para: {supplier_name} <{supplier_email}>")
     print(f"Assunto: Nova solicitação de cotação - {project_name}")
     print(f"Link de acesso: {quote_link}")
-    print(f"================")
+    print("================")
     
     # Simulate successful email sending
     return True

@@ -16,6 +16,8 @@ from app.db.models.project import Project
 from app.db.models.material import Material
 from app.schemas.quote import QuoteCreate, QuoteResponse, QuoteDetailsResponse, ProjectInfo, MaterialInfo
 from app.services.rfq_service import verify_supplier_quote_token
+from app.services.websocket_service import broadcast_quote_received, create_notification_message, broadcast_notification
+from app.api.websockets import manager
 
 router = APIRouter(prefix="/quotes", tags=["Quotes"])
 
@@ -43,7 +45,6 @@ async def get_quote_details(
         payload = verify_supplier_quote_token(token)
         
         rfq_id = uuid.UUID(payload["rfq_id"])
-        supplier_id = uuid.UUID(payload["supplier_id"])
         jti = payload["jti"]
         
     except JWTError:
@@ -205,5 +206,33 @@ async def submit_quote(
     
     # Refresh to get all data including relationships
     db.refresh(db_quote)
+    
+    # Broadcast real-time notification for quote received
+    try:
+        await broadcast_quote_received(
+            manager=manager,
+            rfq_id=str(rfq_id),
+            supplier_id=str(supplier_id),
+            quote_data=db_quote,
+            materials=quote_items
+        )
+        
+        # Create and broadcast success notification
+        notification = create_notification_message(
+            notification_type="success",
+            title="Nova Cotação Recebida",
+            message=f"Cotação recebida do fornecedor {supplier.name}",
+            rfq_id=str(rfq_id)
+        )
+        
+        await broadcast_notification(
+            manager=manager,
+            rfq_id=str(rfq_id),
+            notification=notification
+        )
+        
+    except Exception as e:
+        # Log error but don't fail the quote submission
+        print(f"Error broadcasting quote notification: {e}")
     
     return db_quote

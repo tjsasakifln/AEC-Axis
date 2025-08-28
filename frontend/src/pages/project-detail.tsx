@@ -75,6 +75,22 @@ function ProjectDetail() {
     }
   }, [projectId])
 
+  // Handle RFQ subscription when dashboard is opened/closed
+  useEffect(() => {
+    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+      if (selectedRfqId) {
+        // Subscribe to RFQ updates when dashboard is opened
+        ws.current.send(JSON.stringify({
+          type: 'subscribe_rfq',
+          rfq_id: selectedRfqId
+        }))
+        console.log(`Subscribing to RFQ updates: ${selectedRfqId}`)
+      }
+      // Note: We don't need to unsubscribe explicitly as the backend will handle cleanup
+      // when the connection is closed or when a new subscription is made
+    }
+  }, [selectedRfqId])
+
   const setupWebSocket = () => {
     if (!projectId) return
 
@@ -85,10 +101,19 @@ function ProjectDetail() {
       ws.current.onopen = () => {
         console.log('WebSocket connected')
         if (ws.current) {
+          // Subscribe to project updates
           ws.current.send(JSON.stringify({
             type: 'subscribe',
             project_id: projectId
           }))
+          
+          // Subscribe to RFQ updates if dashboard is open
+          if (selectedRfqId) {
+            ws.current.send(JSON.stringify({
+              type: 'subscribe_rfq',
+              rfq_id: selectedRfqId
+            }))
+          }
         }
       }
 
@@ -124,6 +149,25 @@ function ProjectDetail() {
       )
     } else if (message.type === 'subscribed') {
       console.log(`Subscribed to project ${message.project_id}`)
+    } else if (message.type === 'subscribed_rfq') {
+      console.log(`Subscribed to RFQ ${message.rfq_id}`)
+    } else if (message.type === 'quote_received') {
+      // Handle quote received messages - these will be primarily handled by useRealtimeQuotes
+      console.log(`Quote received for RFQ ${message.rfq_id}`)
+      // Optionally trigger a dashboard data reload
+      if (selectedRfqId === message.rfq_id) {
+        // The QuoteDashboard component will handle this through useRealtimeQuotes
+        console.log('Quote received for currently open RFQ dashboard')
+      }
+    } else if (message.type === 'price_update') {
+      // Handle price update messages
+      console.log(`Price updated for material ${message.data?.material_id} in RFQ ${message.rfq_id}`)
+    } else if (message.type === 'supplier_online' || message.type === 'supplier_offline') {
+      // Handle supplier status changes
+      console.log(`Supplier ${message.data?.supplier_id} is now ${message.type.split('_')[1]}`)
+    } else if (message.type === 'notification') {
+      // Handle notification messages - these will be primarily handled by useRealtimeQuotes
+      console.log(`Notification for RFQ ${message.rfq_id}:`, message.data?.title)
     }
   }
 

@@ -9,11 +9,9 @@ import io
 import os
 import uuid
 from decimal import Decimal
-from typing import Optional
 
 import boto3
 import ifcopenshell
-from botocore.exceptions import ClientError
 from sqlalchemy.orm import Session
 
 from app.db.models.ifc_file import IFCFile

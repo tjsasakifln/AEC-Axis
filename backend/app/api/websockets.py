@@ -8,7 +8,6 @@ import json
 import uuid
 from typing import Dict, Set
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from fastapi.security import HTTPBearer
 
 router = APIRouter()
 
@@ -25,6 +24,7 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, WebSocket] = {}
         self.project_subscriptions: Dict[str, Set[str]] = {}
+        self.rfq_subscriptions: Dict[str, Set[str]] = {}
     
     async def connect(self, websocket: WebSocket, client_id: str):
         """Accept a WebSocket connection and store it."""
@@ -39,6 +39,10 @@ class ConnectionManager:
         # Remove from all project subscriptions
         for project_id, subscribers in self.project_subscriptions.items():
             subscribers.discard(client_id)
+        
+        # Remove from all RFQ subscriptions
+        for rfq_id, subscribers in self.rfq_subscriptions.items():
+            subscribers.discard(client_id)
     
     def subscribe_to_project(self, client_id: str, project_id: str):
         """Subscribe a client to project notifications."""
@@ -46,10 +50,29 @@ class ConnectionManager:
             self.project_subscriptions[project_id] = set()
         self.project_subscriptions[project_id].add(client_id)
     
+    def subscribe_to_rfq(self, client_id: str, rfq_id: str):
+        """Subscribe a client to RFQ-specific notifications."""
+        if rfq_id not in self.rfq_subscriptions:
+            self.rfq_subscriptions[rfq_id] = set()
+        self.rfq_subscriptions[rfq_id].add(client_id)
+    
     async def notify_project(self, project_id: str, message: dict):
         """Send a notification to all clients subscribed to a project."""
         if project_id in self.project_subscriptions:
             subscribers = self.project_subscriptions[project_id].copy()
+            for client_id in subscribers:
+                if client_id in self.active_connections:
+                    try:
+                        websocket = self.active_connections[client_id]
+                        await websocket.send_text(json.dumps(message))
+                    except Exception:
+                        # Connection is broken, remove it
+                        self.disconnect(client_id)
+    
+    async def notify_rfq(self, rfq_id: str, message: dict):
+        """Send a notification to all clients subscribed to a specific RFQ."""
+        if rfq_id in self.rfq_subscriptions:
+            subscribers = self.rfq_subscriptions[rfq_id].copy()
             for client_id in subscribers:
                 if client_id in self.active_connections:
                     try:
@@ -88,6 +111,13 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                 await websocket.send_text(json.dumps({
                     "type": "subscribed",
                     "project_id": project_id
+                }))
+            elif message.get("type") == "subscribe_rfq" and message.get("rfq_id"):
+                rfq_id = message["rfq_id"]
+                manager.subscribe_to_rfq(client_id, rfq_id)
+                await websocket.send_text(json.dumps({
+                    "type": "subscribed_rfq",
+                    "rfq_id": rfq_id
                 }))
             
     except WebSocketDisconnect:

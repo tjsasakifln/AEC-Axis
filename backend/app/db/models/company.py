@@ -5,7 +5,7 @@ This model represents the companies table as specified in the PRD requirements.
 Companies are the client organizations that use the AEC Axis platform.
 """
 import uuid
-from sqlalchemy import Column, Integer, String, DateTime, func
+from sqlalchemy import Column, String, DateTime, func
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base

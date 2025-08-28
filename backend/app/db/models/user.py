@@ -5,7 +5,7 @@ This model represents the users table as specified in the PRD requirements.
 Users are the individuals who use the AEC Axis platform and are associated with a company.
 """
 import uuid
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, func
+from sqlalchemy import Column, String, DateTime, Boolean, ForeignKey, func
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base

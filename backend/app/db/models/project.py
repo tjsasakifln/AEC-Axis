@@ -5,7 +5,7 @@ This model represents the projects table as specified in the PRD requirements.
 Projects are construction projects managed by companies on the AEC Axis platform.
 """
 import uuid
-from sqlalchemy import Column, Integer, String, DateTime, Date, ForeignKey, func
+from sqlalchemy import Column, String, DateTime, Date, ForeignKey, func
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import relationship
 

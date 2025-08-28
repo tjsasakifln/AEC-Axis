@@ -6,7 +6,6 @@ This module contains business logic for IFC file processing and management.
 import json
 import os
 import uuid
-from typing import Optional
 
 import boto3
 from botocore.exceptions import ClientError
