@@ -107,11 +107,8 @@ def txt_file_content():
     return b"This is a text file, not an IFC file."
 
 
-@patch('backend.app.services.ifc_service._get_sqs_client')
-@patch('backend.app.services.ifc_service._get_sqs_queue_url')
-@patch('backend.app.services.ifc_service._get_s3_client')
-@patch('backend.app.services.ifc_service._get_s3_bucket_name')
-def test_upload_ifc_file_success(mock_get_bucket_name, mock_get_s3_client, mock_get_queue_url, mock_get_sqs_client, client, auth_token, test_project, ifc_file_content):
+@patch('app.services.ifc_service.IFCServiceFactory.create_service_components')
+def test_upload_ifc_file_success(mock_create_components, client, auth_token, test_project, ifc_file_content):
     """Teste o upload bem-sucedido do arquivo .ifc de teste"""
     # Setup S3 mocks
     mock_s3_client = MagicMock()

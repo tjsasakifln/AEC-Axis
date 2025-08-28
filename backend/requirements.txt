@@ -17,6 +17,12 @@ python-multipart
 # AWS Services
 boto3
 aiobotocore
+aioboto3
+aiobreaker
+tenacity
+aiofiles
+dependency-injector
+aiohttp
 
 # IFC Processing
 ifcopenshell
