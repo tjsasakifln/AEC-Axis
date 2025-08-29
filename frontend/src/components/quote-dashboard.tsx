@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
-import { rfqsApi, QuoteDashboardData, DashboardMaterial, DashboardQuoteItem } from '../services/api'
+import { useState } from 'react'
+import { useRFQDashboard, useUpdateDashboardData } from '../hooks/useRFQs'
+import { DashboardMaterial, DashboardQuoteItem } from '../services/api'
 import { useRealtimeQuotes } from '../hooks/useRealtimeQuotes'
 import NotificationToast from './NotificationToast'
 import PriceTrendMini from './PriceTrendMini'
@@ -11,9 +12,11 @@ interface QuoteDashboardProps {
 }
 
 function QuoteDashboard({ rfqId, onClose }: QuoteDashboardProps) {
-  const [dashboardData, setDashboardData] = useState<QuoteDashboardData | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState('')
+  // React Query hooks
+  const { data: dashboardData, isLoading, error: queryError } = useRFQDashboard(rfqId)
+  
+  // Convert query error to string for compatibility
+  const error = queryError ? 'Erro ao carregar dados do dashboard' : ''
   
   // Real-time features
   const { 
@@ -27,23 +30,7 @@ function QuoteDashboard({ rfqId, onClose }: QuoteDashboardProps) {
     toggleAutoRefresh 
   } = useRealtimeQuotes(rfqId)
 
-  useEffect(() => {
-    loadDashboardData()
-  }, [rfqId])
-
-  const loadDashboardData = async () => {
-    try {
-      setIsLoading(true)
-      setError('')
-      const data = await rfqsApi.getDashboardData(rfqId)
-      setDashboardData(data)
-    } catch (err) {
-      setError('Erro ao carregar dados do dashboard')
-      console.error(err)
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  // Data loading is now handled by React Query with auto-refresh
 
   const getUniqueSuppliers = () => {
     if (!dashboardData) return []

@@ -1,10 +1,10 @@
 import React from 'react'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { BrowserRouter } from 'react-router-dom'
 import Projects from '../pages/projects'
-import { AuthProvider } from '../contexts/auth-context'
+import { renderWithProviders } from '../test-utils/render-helpers'
+import { createMockProject, createMockProjectList } from '../test-utils/mock-data'
 
 // ============================================================================
 // PROJECTS PAGE COMPREHENSIVE TEST SUITE
@@ -36,15 +36,19 @@ vi.mock('../contexts/auth-context', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>
 }))
 
-const renderWithProviders = (component: React.ReactElement) => {
-  return render(
-    <BrowserRouter>
-      <AuthProvider>
-        {component}
-      </AuthProvider>
-    </BrowserRouter>
-  )
-}
+// Mock the React Query hooks
+const mockProjects = createMockProjectList(3)
+vi.mock('../hooks/useProjects', () => ({
+  useProjects: () => ({
+    data: mockProjects,
+    isLoading: false,
+    error: null
+  }),
+  useCreateProject: () => ({
+    mutate: vi.fn(),
+    isPending: false
+  })
+}))
 
 describe('Projects Page', () => {
   beforeEach(() => {

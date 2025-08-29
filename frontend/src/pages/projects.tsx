@@ -1,25 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
+import { useProjects, useCreateProject } from '../hooks/useProjects'
 
-interface Project {
-  id: string
-  name: string
-  status: string
-  created_at: string
-  address?: string
-  start_date?: string
-}
+import { CreateProjectRequest } from '../services/api'
 
-// interface ProjectsResponse {
-//   projects: Project[]
-//   total_count: number
-//   total_pages: number
-//   current_page: number
-//   limit: number
-//   has_next: boolean
-//   has_previous: boolean
-// }
+// Remove local interfaces as they're now imported from the API service
 
 interface ProjectSummary {
   total_projects: number
@@ -27,27 +13,24 @@ interface ProjectSummary {
   completed_projects: number
 }
 
-interface CreateProjectRequest {
-  name: string
-  address?: string
-  start_date?: string
-}
-
 function Projects() {
-  const [projects, setProjects] = useState<Project[]>([])
+  // React Query hooks
+  const { data: projects = [], isLoading, error: queryError } = useProjects()
+  const createProjectMutation = useCreateProject()
+  
+  // Local state
   const [projectsSummary, setProjectsSummary] = useState<ProjectSummary | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState('')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
-  const [editingProject, setEditingProject] = useState<Project | null>(null)
+  const [editingProject, setEditingProject] = useState<any>(null)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [message, setMessage] = useState('')
   
   // Search and filter state
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   
-  // Pagination state
+  // Pagination state (keeping for demo data)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [, setTotalCount] = useState(0)
@@ -55,15 +38,14 @@ function Projects() {
   
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  
+  // Convert query error to string for compatibility
+  const error = queryError ? 'Erro ao carregar projetos' : ''
 
-  useEffect(() => {
-    loadProjects()
+  // Load summary data on mount (keeping demo implementation)
+  React.useEffect(() => {
     loadProjectsSummary()
   }, [])
-
-  useEffect(() => {
-    loadProjects()
-  }, [searchTerm, statusFilter, currentPage])
 
   useEffect(() => {
     const handleClickOutside = () => {
@@ -78,82 +60,40 @@ function Projects() {
     }
   }, [openMenuId])
 
-  const loadProjects = async () => {
-    try {
-      setIsLoading(true)
-      
-      // Construir parâmetros de query
-      const params = new URLSearchParams({
-        page: currentPage.toString(),
-        limit: limit.toString()
-      })
-      
-      if (searchTerm.trim()) {
-        params.append('search', searchTerm.trim())
-      }
-      
-      if (statusFilter) {
-        params.append('status', statusFilter)
-      }
-      
-      // Simular chamada da API (substituir pela chamada real posteriormente)
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      // Projetos de demonstração filtrados
-      let demoProjects: Project[] = [
-        {
-          id: '1',
-          name: 'Galpão Industrial Santos',
-          status: 'OPEN',
-          created_at: new Date().toISOString(),
-          address: 'Santos, SP'
-        },
-        {
-          id: '2',
-          name: 'Centro de Distribuição Campinas', 
-          status: 'CLOSED',
-          created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          address: 'Campinas, SP'
-        },
-        {
-          id: '3',
-          name: 'Escritório Silva & Associates',
-          status: 'OPEN',
-          created_at: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-          address: 'Rua Silva, 123, São Paulo, SP'
-        }
-      ]
-      
-      // Aplicar filtros localmente para demonstração
-      if (searchTerm.trim()) {
-        demoProjects = demoProjects.filter(project => 
-          project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (project.address && project.address.toLowerCase().includes(searchTerm.toLowerCase()))
-        )
-      }
-      
-      if (statusFilter) {
-        demoProjects = demoProjects.filter(project => project.status === statusFilter)
-      }
-      
-      // Simular paginação
-      const totalCount = demoProjects.length
-      const totalPages = Math.ceil(totalCount / limit)
-      const startIndex = (currentPage - 1) * limit
-      const endIndex = startIndex + limit
-      const paginatedProjects = demoProjects.slice(startIndex, endIndex)
-      
-      setProjects(paginatedProjects)
-      setTotalCount(totalCount)
-      setTotalPages(totalPages)
-      
-    } catch (err) {
-      setError('Erro ao carregar projetos')
-      console.error(err)
-    } finally {
-      setIsLoading(false)
+  // Apply client-side filtering to the fetched projects
+  const filteredProjects = React.useMemo(() => {
+    let filtered = projects
+    
+    // Apply search filter
+    if (searchTerm.trim()) {
+      filtered = filtered.filter(project => 
+        project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (project.address && project.address.toLowerCase().includes(searchTerm.toLowerCase()))
+      )
     }
-  }
+    
+    // Apply status filter
+    if (statusFilter) {
+      filtered = filtered.filter(project => project.status === statusFilter)
+    }
+    
+    return filtered
+  }, [projects, searchTerm, statusFilter])
+  
+  // Update pagination based on filtered results
+  React.useEffect(() => {
+    const totalCount = filteredProjects.length
+    const totalPages = Math.ceil(totalCount / limit)
+    setTotalCount(totalCount)
+    setTotalPages(totalPages)
+  }, [filteredProjects.length, limit])
+  
+  // Get paginated results
+  const paginatedProjects = React.useMemo(() => {
+    const startIndex = (currentPage - 1) * limit
+    const endIndex = startIndex + limit
+    return filteredProjects.slice(startIndex, endIndex)
+  }, [filteredProjects, currentPage, limit])
 
   const loadProjectsSummary = async () => {
     try {
@@ -174,54 +114,31 @@ function Projects() {
 
   const handleCreateProject = async (projectData: CreateProjectRequest) => {
     try {
-      // Simular criação de projeto
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      
-      const newProject: Project = {
-        id: Date.now().toString(),
-        name: projectData.name,
-        status: 'Planejamento',
-        created_at: new Date().toISOString(),
-        address: projectData.address,
-        start_date: projectData.start_date
-      }
-      
-      setProjects([...projects, newProject])
+      await createProjectMutation.mutateAsync(projectData)
       setShowCreateModal(false)
+      setMessage('Projeto criado com sucesso!')
+      setTimeout(() => setMessage(''), 5000)
     } catch (err) {
-      setError('Erro ao criar projeto')
+      setMessage('Erro ao criar projeto')
       console.error(err)
     }
   }
 
   const handleEditProject = async (projectData: CreateProjectRequest) => {
-    try {
-      if (!editingProject) return
-      
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      
-      const updatedProject: Project = {
-        ...editingProject,
-        name: projectData.name,
-        address: projectData.address,
-        start_date: projectData.start_date
-      }
-      
-      setProjects(projects.map(p => p.id === editingProject.id ? updatedProject : p))
-      setShowEditModal(false)
-      setEditingProject(null)
-    } catch (err) {
-      setError('Erro ao editar projeto')
-      console.error(err)
-    }
+    // TODO: Implement project update mutation when backend API is available
+    console.log('Edit project functionality to be implemented with backend API:', projectData)
+    setShowEditModal(false)
+    setEditingProject(null)
+    setMessage('Funcionalidade de edição será implementada em breve')
+    setTimeout(() => setMessage(''), 3000)
   }
 
   const handleArchiveProject = (projectId: string) => {
-    const confirmed = window.confirm('Tem certeza que deseja arquivar este projeto?')
-    if (confirmed) {
-      setProjects(projects.filter(p => p.id !== projectId))
-      setOpenMenuId(null)
-    }
+    // TODO: Implement project archive mutation when backend API is available
+    console.log('Archive project functionality to be implemented:', projectId)
+    setMessage('Funcionalidade de arquivar será implementada em breve')
+    setTimeout(() => setMessage(''), 3000)
+    setOpenMenuId(null)
   }
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -384,9 +301,13 @@ function Projects() {
       </div>
 
       <div style={{ margin: '0 30px' }}>
-        {error && <div className="error-message">{error}</div>}
+        {(error || message) && (
+          <div className={error ? 'error-message' : 'success-message'}>
+            {error || message}
+          </div>
+        )}
 
-        {projects.length === 0 ? (
+        {paginatedProjects.length === 0 ? (
           <div className="empty-state">
             <h3>Você ainda não tem projetos.</h3>
             <p>Clique em "+ Novo Projeto" para começar.</p>
@@ -403,7 +324,7 @@ function Projects() {
                 </tr>
               </thead>
               <tbody>
-                {projects.map((project) => (
+                {paginatedProjects.map((project) => (
                   <tr key={project.id}>
                     <td>
                       <strong>{project.name}</strong>
@@ -558,7 +479,12 @@ interface CreateProjectModalProps {
 }
 
 interface EditProjectModalProps {
-  project: Project
+  project: {
+    id: string
+    name: string
+    address?: string
+    start_date?: string
+  }
   onClose: () => void
   onEdit: (project: CreateProjectRequest) => void
 }

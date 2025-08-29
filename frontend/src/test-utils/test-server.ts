@@ -386,31 +386,117 @@ export const createMockHandler = (
 }
 
 // ============================================================================
+// WEBSOCKET MOCK CLASS
+// Mock WebSocket implementation for testing
+// ============================================================================
+
+export class MockWebSocket {
+  static CONNECTING = 0
+  static OPEN = 1
+  static CLOSING = 2
+  static CLOSED = 3
+
+  readyState = MockWebSocket.CONNECTING
+  url: string
+  onopen: ((event: Event) => void) | null = null
+  onclose: ((event: CloseEvent) => void) | null = null
+  onmessage: ((event: MessageEvent) => void) | null = null
+  onerror: ((event: Event) => void) | null = null
+
+  private _sentMessages: any[] = []
+
+  constructor(url: string) {
+    this.url = url
+    
+    // Simulate connection opening
+    setTimeout(() => {
+      this.readyState = MockWebSocket.OPEN
+      if (this.onopen) {
+        this.onopen(new Event('open'))
+      }
+    }, 0)
+  }
+
+  send(data: string | ArrayBuffer | Blob | ArrayBufferView) {
+    if (this.readyState !== MockWebSocket.OPEN) {
+      throw new Error('WebSocket is not open')
+    }
+    
+    try {
+      const message = typeof data === 'string' ? JSON.parse(data) : data
+      this._sentMessages.push(message)
+      mockWebSocketServer.handleMessage(message)
+    } catch (error) {
+      console.warn('Failed to parse WebSocket message:', error)
+    }
+  }
+
+  close() {
+    this.readyState = MockWebSocket.CLOSED
+    if (this.onclose) {
+      this.onclose(new CloseEvent('close'))
+    }
+  }
+
+  getSentMessages() {
+    return this._sentMessages
+  }
+
+  clearSentMessages() {
+    this._sentMessages = []
+  }
+}
+
+// ============================================================================
 // WEBSOCKET MOCK SERVER
 // For WebSocket testing in project-detail.tsx
 // ============================================================================
 
 export class MockWebSocketServer {
-  private clients: Set<any> = new Set()
+  private clients: Set<MockWebSocket> = new Set()
   private isRunning = false
+  private _sentMessages: any[] = []
+  private _receivedMessages: any[] = []
 
-  start() {
+  listen() {
     this.isRunning = true
     console.log('Mock WebSocket server started')
+    return this
   }
 
-  stop() {
+  start() {
+    return this.listen()
+  }
+
+  close() {
     this.isRunning = false
     this.clients.clear()
     console.log('Mock WebSocket server stopped')
   }
 
-  addClient(client: any) {
+  stop() {
+    this.close()
+  }
+
+  addClient(client: MockWebSocket) {
     this.clients.add(client)
   }
 
-  removeClient(client: any) {
+  removeClient(client: MockWebSocket) {
     this.clients.delete(client)
+  }
+
+  handleMessage(message: any) {
+    this._receivedMessages.push(message)
+  }
+
+  send(message: any) {
+    this._sentMessages.push(message)
+    this.broadcast(message)
+  }
+
+  sendMessage(message: any) {
+    this.send(message)
   }
 
   broadcast(message: any) {
@@ -418,16 +504,32 @@ export class MockWebSocketServer {
     
     const messageStr = JSON.stringify(message)
     this.clients.forEach(client => {
-      if (client.onmessage) {
+      if (client.onmessage && client.readyState === MockWebSocket.OPEN) {
         client.onmessage(new MessageEvent('message', { data: messageStr }))
       }
     })
   }
 
   sendToClient(clientId: string, message: any) {
-    // In a real implementation, you'd find the specific client
-    // For testing, we'll just broadcast
+    // For testing, we'll just broadcast since we don't track client IDs
     this.broadcast(message)
+  }
+
+  getSentMessages() {
+    return this._sentMessages
+  }
+
+  getReceivedMessages() {
+    return this._receivedMessages
+  }
+
+  getConnectionCount() {
+    return this.clients.size
+  }
+
+  clearMessages() {
+    this._sentMessages = []
+    this._receivedMessages = []
   }
 }
 

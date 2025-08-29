@@ -248,6 +248,20 @@ export const createMockCreateRFQRequest = (
 // QUOTE DATA FACTORIES
 // ============================================================================
 
+export const createMockQuote = (overrides: Partial<any> = {}): any => ({
+  id: `quote-${Date.now()}`,
+  rfq_id: 'rfq-1',
+  supplier_name: 'Test Supplier',
+  supplier_email: 'test@supplier.com',
+  cnpj: '12.345.678/0001-90',
+  total_amount: 50000.00,
+  status: 'SUBMITTED',
+  valid_until: '2025-12-31',
+  submitted_at: new Date().toISOString(),
+  items: [],
+  ...overrides
+})
+
 export const createMockQuoteItemSubmission = (
   overrides: Partial<QuoteItemSubmission> = {}
 ): QuoteItemSubmission => ({
@@ -356,11 +370,44 @@ export const createMockIFCStatusUpdate = (ifcFileId: string, status: IFCFile['st
     status,
   })
 
-export const createMockQuoteReceived = (rfqId: string, supplierId: string, price: number) =>
+export const createMockQuoteReceived = (overrides: any = {}) =>
   createMockWebSocketMessage('quote_received', {
-    rfq_id: rfqId,
-    supplier_id: supplierId,
-    price,
+    rfq_id: 'rfq-1',
+    supplier_id: 'supplier-1',
+    price: 1500.00,
+    ...overrides,
+  })
+
+export const createMockPriceUpdate = (overrides: any = {}) =>
+  createMockWebSocketMessage('price_update', {
+    rfq_id: 'rfq-1',
+    data: {
+      material_id: 'material-1',
+      supplier_id: 'supplier-1',
+      old_price: 100,
+      new_price: 85,
+    },
+    ...overrides,
+  })
+
+export const createMockSupplierOnline = (overrides: any = {}) =>
+  createMockWebSocketMessage('supplier_online', {
+    data: {
+      supplier_id: 'supplier-1',
+    },
+    ...overrides,
+  })
+
+export const createMockNotification = (overrides: any = {}) =>
+  createMockWebSocketMessage('notification', {
+    rfq_id: 'rfq-1',
+    data: {
+      type: 'info',
+      title: 'Test Notification',
+      message: 'Test message',
+      duration: 3000,
+    },
+    ...overrides,
   })
 
 // ============================================================================
@@ -482,6 +529,7 @@ export default {
   createMockRFQ,
   createMockRFQList,
   createMockCreateRFQRequest,
+  createMockQuote,
   createMockQuoteDashboardData,
   createMockDashboardMaterial,
   createMockQuoteItemSubmission,
@@ -490,6 +538,9 @@ export default {
   createMockWebSocketMessage,
   createMockIFCStatusUpdate,
   createMockQuoteReceived,
+  createMockPriceUpdate,
+  createMockSupplierOnline,
+  createMockNotification,
   
   // Files
   createMockFile,

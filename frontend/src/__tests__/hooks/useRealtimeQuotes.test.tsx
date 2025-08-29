@@ -2,14 +2,14 @@ import React from 'react'
 import { describe, it, expect, beforeEach, afterEach, vi, beforeAll, afterAll } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { useRealtimeQuotes } from '../../hooks/useRealtimeQuotes'
-import { MockWebSocket, mockWebSocketServer } from '@test-utils/test-server'
+import { MockWebSocket, mockWebSocketServer } from '../../test-utils/test-server'
 import {
   createMockWebSocketMessage,
   createMockQuoteReceived,
   createMockPriceUpdate,
   createMockSupplierOnline,
   createMockNotification
-} from '@test-utils/mock-data'
+} from '../../test-utils/mock-data'
 
 // ============================================================================
 // REALTIME QUOTES HOOK COMPREHENSIVE TEST SUITE  

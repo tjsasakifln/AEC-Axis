@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react'
-import { materialsApi, Material, UpdateMaterialRequest } from '../services/api'
+import React, { useState } from 'react'
+import { useMaterials, useUpdateMaterial, useDeleteMaterial } from '../hooks/useMaterials'
+import { Material, UpdateMaterialRequest } from '../services/api'
 
 interface MaterialsTableProps {
   ifcFileId: string
@@ -7,30 +8,21 @@ interface MaterialsTableProps {
 }
 
 function MaterialsTable({ ifcFileId, onSelectedMaterialsChange }: MaterialsTableProps) {
-  const [materials, setMaterials] = useState<Material[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState('')
+  // React Query hooks
+  const { data: materials = [], isLoading, error: queryError } = useMaterials(ifcFileId)
+  const updateMaterialMutation = useUpdateMaterial()
+  const deleteMaterialMutation = useDeleteMaterial()
+  
+  // Local state
   const [editingCell, setEditingCell] = useState<{ materialId: string; field: string } | null>(null)
   const [editValue, setEditValue] = useState('')
   const [selectedMaterials, setSelectedMaterials] = useState<Set<string>>(new Set())
+  const [localError, setLocalError] = useState('')
+  
+  // Convert query error to string for compatibility
+  const error = queryError ? 'Erro ao carregar materiais' : localError
 
-  useEffect(() => {
-    loadMaterials()
-  }, [ifcFileId])
-
-  const loadMaterials = async () => {
-    try {
-      setIsLoading(true)
-      setError('')
-      const materialsData = await materialsApi.getByIFCFileId(ifcFileId)
-      setMaterials(materialsData)
-    } catch (err) {
-      setError('Erro ao carregar materiais')
-      console.error(err)
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  // Data loading is now handled by React Query hooks
 
   const handleCellClick = (materialId: string, field: string, currentValue: string | number) => {
     setEditingCell({ materialId, field })
@@ -52,7 +44,7 @@ function MaterialsTable({ ifcFileId, onSelectedMaterialsChange }: MaterialsTable
       } else if (field === 'quantity') {
         const numValue = parseFloat(editValue)
         if (isNaN(numValue)) {
-          setError('Quantidade deve ser um número válido')
+          setLocalError('Quantidade deve ser um número válido')
           setEditingCell(null)
           return
         }
@@ -61,18 +53,12 @@ function MaterialsTable({ ifcFileId, onSelectedMaterialsChange }: MaterialsTable
         updateData.unit = editValue
       }
 
-      const updatedMaterial = await materialsApi.update(materialId, updateData)
-      
-      setMaterials(prevMaterials =>
-        prevMaterials.map(m =>
-          m.id === materialId ? updatedMaterial : m
-        )
-      )
+      await updateMaterialMutation.mutateAsync({ materialId, data: updateData })
       
       setEditingCell(null)
-      setError('')
+      setLocalError('')
     } catch (err) {
-      setError('Erro ao salvar alterações')
+      setLocalError('Erro ao salvar alterações')
       console.error(err)
       setEditingCell(null)
     }
@@ -118,13 +104,10 @@ function MaterialsTable({ ifcFileId, onSelectedMaterialsChange }: MaterialsTable
     if (!confirmed) return
 
     try {
-      await materialsApi.delete(materialId)
-      setMaterials(prevMaterials =>
-        prevMaterials.filter(m => m.id !== materialId)
-      )
-      setError('')
+      await deleteMaterialMutation.mutateAsync({ materialId, ifcFileId })
+      setLocalError('')
     } catch (err) {
-      setError('Erro ao excluir material')
+      setLocalError('Erro ao excluir material')
       console.error(err)
     }
   }

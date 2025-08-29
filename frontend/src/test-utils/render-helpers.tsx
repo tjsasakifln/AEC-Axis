@@ -1,6 +1,7 @@
 import React from 'react'
 import { render, RenderOptions, RenderResult } from '@testing-library/react'
 import { BrowserRouter, MemoryRouter } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from '../contexts/auth-context'
 
 // ============================================================================
@@ -117,6 +118,19 @@ export function renderWithProviders(
         <BrowserRouter>{children}</BrowserRouter>
       )
 
+  // Create a test QueryClient with disabled retries and caching for predictable tests
+  const testQueryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0, // Disable caching
+      },
+      mutations: {
+        retry: false,
+      },
+    },
+  })
+
   // Compose all wrapper components
   const AllProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     let wrappedChildren = children
@@ -127,11 +141,13 @@ export function renderWithProviders(
     })
 
     return (
-      <RouterWrapper>
-        <TestAuthProvider>
-          {wrappedChildren}
-        </TestAuthProvider>
-      </RouterWrapper>
+      <QueryClientProvider client={testQueryClient}>
+        <RouterWrapper>
+          <TestAuthProvider>
+            {wrappedChildren}
+          </TestAuthProvider>
+        </RouterWrapper>
+      </QueryClientProvider>
     )
   }
 

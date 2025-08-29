@@ -115,7 +115,7 @@ function IFCViewer({
   }, [ifcFileUrl, isInitialized, onLoadStart, onLoadComplete, onLoadError])
 
   return (
-    <div style={{ width, height, position: 'relative', border: '1px solid #ddd', borderRadius: '4px' }}>
+    <div data-testid="ifc-viewer-container" style={{ width, height, position: 'relative', border: '1px solid #ddd', borderRadius: '4px' }}>
       {isLoading && (
         <div style={{ 
           position: 'absolute',

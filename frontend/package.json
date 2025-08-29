@@ -19,6 +19,8 @@
     "lint:fix": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0 --fix"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.85.5",
+    "@tanstack/react-query-devtools": "^5.85.5",
     "@types/lodash": "^4.17.20",
     "@types/three": "^0.179.0",
     "axios": "^1.5.0",

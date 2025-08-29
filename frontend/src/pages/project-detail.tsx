@@ -1,7 +1,10 @@
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
-import { projectsApi, ifcFilesApi, rfqsApi, Project, IFCFile, RFQ } from '../services/api'
+import { useProject } from '../hooks/useProjects'
+import { useIFCFiles, useUpdateIFCFileStatus, useIFCViewerUrl } from '../hooks/useIFCFiles'
+import { useRFQs, useCreateRFQ } from '../hooks/useRFQs'
+import { IFCFile } from '../services/api'
 import MaterialsTable from '../components/materials-table'
 import SupplierSelectionModal from '../components/supplier-selection-modal'
 import QuoteDashboard from '../components/quote-dashboard'
@@ -20,12 +23,12 @@ function ProjectDetail() {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   
-  const [project, setProject] = useState<Project | null>(null)
-  const [ifcFiles, setIfcFiles] = useState<IFCFile[]>([])
-  const [rfqs, setRfqs] = useState<RFQ[]>([])
-  const [isLoadingProject, setIsLoadingProject] = useState(true)
-  const [isLoadingFiles, setIsLoadingFiles] = useState(true)
-  const [isLoadingRfqs, setIsLoadingRfqs] = useState(true)
+  // React Query hooks
+  const { data: project, isLoading: isLoadingProject, error: projectError } = useProject(projectId)
+  const { data: ifcFiles = [], isLoading: isLoadingFiles, error: filesError } = useIFCFiles(projectId)
+  const { data: rfqs = [], isLoading: isLoadingRfqs, error: rfqsError } = useRFQs(projectId)
+  const createRFQMutation = useCreateRFQ()
+  const { updateFileStatus } = useUpdateIFCFileStatus()
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState<'error' | 'success'>('error')
   const [selectedIFCFile, setSelectedIFCFile] = useState<IFCFile | null>(null)
@@ -38,8 +41,8 @@ function ProjectDetail() {
   
   // Upload and preview hooks
   const { uploadState, uploadFile, retryUpload, cancelUpload, resetUploadState } = useFileUpload({
-    onComplete: (file: IFCFile) => {
-      setIfcFiles([...ifcFiles, file])
+    onComplete: () => {
+      // React Query will automatically update the IFC files list
       setMessage('Upload concluído com sucesso!')
       setMessageType('success')
       setTimeout(() => setMessage(''), 5000)
@@ -55,16 +58,15 @@ function ProjectDetail() {
   const [selectedMaterialIds, setSelectedMaterialIds] = useState<string[]>([])
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false)
   const [selectedRfqId, setSelectedRfqId] = useState<string | null>(null)
-  const [ifcViewerUrl, setIfcViewerUrl] = useState<string | null>(null)
-  const [isLoadingViewerUrl, setIsLoadingViewerUrl] = useState(false)
+  
+  // Get viewer URL from React Query
+  const { data: ifcViewerData, isLoading: isLoadingViewerUrl } = useIFCViewerUrl(selectedIFCFile?.id)
+  const ifcViewerUrl = ifcViewerData?.url || null
   const ws = useRef<WebSocket | null>(null)
   const clientId = useRef<string>(Math.random().toString(36).substring(7))
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (projectId) {
-      loadProjectData()
-      loadIfcFiles()
-      loadRfqs()
       setupWebSocket()
     }
     
@@ -76,7 +78,7 @@ function ProjectDetail() {
   }, [projectId])
 
   // Handle RFQ subscription when dashboard is opened/closed
-  useEffect(() => {
+  React.useEffect(() => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
       if (selectedRfqId) {
         // Subscribe to RFQ updates when dashboard is opened
@@ -140,13 +142,8 @@ function ProjectDetail() {
 
   const handleWebSocketMessage = (message: any) => {
     if (message.type === 'ifc_status_update') {
-      setIfcFiles(prevFiles => 
-        prevFiles.map(file => 
-          file.id === message.ifc_file_id 
-            ? { ...file, status: message.status }
-            : file
-        )
-      )
+      // Update IFC file status through React Query
+      updateFileStatus(projectId!, message.ifc_file_id, message.status)
     } else if (message.type === 'subscribed') {
       console.log(`Subscribed to project ${message.project_id}`)
     } else if (message.type === 'subscribed_rfq') {
@@ -171,47 +168,20 @@ function ProjectDetail() {
     }
   }
 
-  const loadProjectData = async () => {
-    try {
-      setIsLoadingProject(true)
-      const projectData = await projectsApi.getById(projectId!)
-      setProject(projectData)
-    } catch (err) {
+  // Data loading is now handled by React Query hooks
+  // Set error messages based on query errors
+  React.useEffect(() => {
+    if (projectError) {
       setMessage('Erro ao carregar projeto')
       setMessageType('error')
-      console.error(err)
-    } finally {
-      setIsLoadingProject(false)
-    }
-  }
-
-  const loadIfcFiles = async () => {
-    try {
-      setIsLoadingFiles(true)
-      const filesData = await ifcFilesApi.getByProjectId(projectId!)
-      setIfcFiles(filesData)
-    } catch (err) {
+    } else if (filesError) {
       setMessage('Erro ao carregar arquivos IFC')
       setMessageType('error')
-      console.error(err)
-    } finally {
-      setIsLoadingFiles(false)
-    }
-  }
-
-  const loadRfqs = async () => {
-    try {
-      setIsLoadingRfqs(true)
-      const rfqsData = await rfqsApi.getByProjectId(projectId!)
-      setRfqs(rfqsData)
-    } catch (err) {
+    } else if (rfqsError) {
       setMessage('Erro ao carregar RFQs')
       setMessageType('error')
-      console.error(err)
-    } finally {
-      setIsLoadingRfqs(false)
     }
-  }
+  }, [projectError, filesError, rfqsError])
 
   // Enhanced upload handlers
   const handleFileSelect = async (files: FileList) => {
@@ -282,7 +252,7 @@ function ProjectDetail() {
     try {
       setMessage('')
       
-      await rfqsApi.create({
+      await createRFQMutation.mutateAsync({
         project_id: projectId,
         material_ids: selectedMaterialIds,
         supplier_ids: supplierIds
@@ -293,33 +263,17 @@ function ProjectDetail() {
       setMessage('RFQ enviado com sucesso! Os fornecedores receberão a solicitação de cotação.')
       setMessageType('success')
       
-      // Reload RFQs to show the new one
-      loadRfqs()
+      // React Query will automatically update the RFQs list
       
       setTimeout(() => setMessage(''), 5000)
     } catch (err) {
       setMessage('Erro ao enviar RFQ. Tente novamente.')
       setMessageType('error')
       console.error(err)
-    } finally {
-      // RFQ submission completed
     }
   }
 
-  const loadIfcViewerUrl = async (ifcFileId: string) => {
-    try {
-      setIsLoadingViewerUrl(true)
-      setIfcViewerUrl(null)
-      const response = await ifcFilesApi.getViewerUrl(ifcFileId)
-      setIfcViewerUrl(response.url)
-    } catch (err) {
-      console.error('Error loading IFC viewer URL:', err)
-      setMessage('Erro ao carregar URL do visualizador 3D')
-      setMessageType('error')
-    } finally {
-      setIsLoadingViewerUrl(false)
-    }
-  }
+  // IFC Viewer URL loading is now handled by React Query hook
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -530,7 +484,7 @@ function ProjectDetail() {
                     if (file.status === 'COMPLETED') {
                       setSelectedIFCFile(file)
                       setSelectedMaterialIds([])
-                      loadIfcViewerUrl(file.id)
+                      // React Query hook will automatically load the viewer URL
                     }
                   }}
                   style={{
