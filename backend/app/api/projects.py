@@ -4,6 +4,8 @@ Projects API endpoints for AEC Axis.
 This module contains endpoints for managing construction projects.
 """
 import uuid
+import logging
+import asyncio
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
@@ -16,6 +18,9 @@ from app.db.models.rfq import RFQ
 from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse
 from app.schemas.rfq import RFQResponse
 from app.dependencies import get_current_user
+from app.services.cache_service import get_cache_service, CacheKeyBuilder, CacheServiceInterface
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
@@ -24,7 +29,8 @@ router = APIRouter(prefix="/projects", tags=["Projects"])
 def create_project(
     project_data: ProjectCreate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    cache: CacheServiceInterface = Depends(get_cache_service)
 ):
     """
     Create a new project for the authenticated user's company.
@@ -50,6 +56,10 @@ def create_project(
     db.commit()
     db.refresh(db_project)
     
+    # Cache operations disabled in sync endpoints for compatibility
+    pattern = CacheKeyBuilder.projects_pattern(str(current_user.company_id))
+    logger.debug(f"Cache invalidation disabled for sync endpoint: {pattern}")
+    
     return db_project
 
 
@@ -60,7 +70,8 @@ def get_projects(
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(10, ge=1, le=100, description="Number of items per page"),
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    cache: CacheServiceInterface = Depends(get_cache_service)
 ) -> Dict[str, Any]:
     """
     Get all projects for the authenticated user's company with search, filtering, and pagination.
@@ -72,10 +83,23 @@ def get_projects(
         limit: Number of items per page
         current_user: Current authenticated user
         db: Database session
+        cache: Cache service instance
         
     Returns:
         Dictionary containing projects list, total count, and pagination info
     """
+    # Build cache key
+    cache_key = CacheKeyBuilder.projects_list(
+        company_id=str(current_user.company_id),
+        page=page,
+        search=search,
+        status=status
+    )
+    
+    # Cache operations disabled in sync endpoints for compatibility
+    # TODO: Implement proper async cache handling
+    logger.debug(f"Cache disabled for sync endpoint: {cache_key}")
+    
     # Base query filtered by company
     query = db.query(Project).filter(
         Project.company_id == current_user.company_id
@@ -103,8 +127,8 @@ def get_projects(
     # Calculate pagination info
     total_pages = (total_count + limit - 1) // limit
     
-    return {
-        "projects": projects,
+    result = {
+        "projects": [ProjectResponse.model_validate(project) for project in projects],
         "total_count": total_count,
         "total_pages": total_pages,
         "current_page": page,
@@ -112,6 +136,11 @@ def get_projects(
         "has_next": page < total_pages,
         "has_previous": page > 1
     }
+    
+    # Cache operations disabled in sync endpoints for compatibility
+    logger.debug(f"Cache disabled for sync endpoint: {cache_key}")
+    
+    return result
 
 
 @router.get("/summary", response_model=Dict[str, int])
@@ -159,7 +188,8 @@ def get_projects_summary(
 def get_project_by_id(
     project_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    cache: CacheServiceInterface = Depends(get_cache_service)
 ) -> ProjectResponse:
     """
     Get a specific project by ID.
@@ -183,6 +213,10 @@ def get_project_by_id(
             detail="Project not found"
         )
     
+    # Cache operations disabled in sync endpoints for compatibility
+    cache_key = CacheKeyBuilder.project_detail(project_id)
+    logger.debug(f"Cache disabled for sync endpoint: {cache_key}")
+    
     project = db.query(Project).filter(
         Project.id == project_uuid,
         Project.company_id == current_user.company_id
@@ -194,7 +228,11 @@ def get_project_by_id(
             detail="Project not found"
         )
     
-    return project
+    # Cache operations disabled in sync endpoints for compatibility
+    project_response = ProjectResponse.model_validate(project)
+    logger.debug(f"Cache disabled for sync endpoint: {cache_key}")
+    
+    return project_response
 
 
 @router.put("/{project_id}", response_model=ProjectResponse)
@@ -202,7 +240,8 @@ def update_project(
     project_id: str,
     project_data: ProjectUpdate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    cache: CacheServiceInterface = Depends(get_cache_service)
 ) -> ProjectResponse:
     """
     Update a specific project by ID.
@@ -246,6 +285,13 @@ def update_project(
     db.commit()
     db.refresh(project)
     
+    # Invalidate caches for this project and company
+    company_pattern = CacheKeyBuilder.projects_pattern(str(current_user.company_id))
+    project_detail_key = CacheKeyBuilder.project_detail(project_id)
+    
+    # Cache operations disabled for compatibility
+    logger.debug(f"Cache invalidation disabled for sync endpoints: {company_pattern}, {project_detail_key}")
+    
     return project
 
 
@@ -253,7 +299,8 @@ def update_project(
 def delete_project(
     project_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    cache: CacheServiceInterface = Depends(get_cache_service)
 ):
     """
     Delete a specific project by ID.
@@ -287,6 +334,13 @@ def delete_project(
     
     db.delete(project)
     db.commit()
+    
+    # Invalidate caches for this project and company
+    company_pattern = CacheKeyBuilder.projects_pattern(str(current_user.company_id))
+    project_detail_key = CacheKeyBuilder.project_detail(project_id)
+    
+    # Cache operations disabled for compatibility
+    logger.debug(f"Cache invalidation disabled for sync endpoints: {company_pattern}, {project_detail_key}")
 
 
 @router.get("/{project_id}/rfqs", response_model=List[RFQResponse])

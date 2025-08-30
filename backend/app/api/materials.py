@@ -4,6 +4,8 @@ Materials API endpoints for AEC Axis.
 This module contains endpoints for managing materials extracted from IFC files.
 """
 import uuid
+import logging
+import asyncio
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -15,6 +17,9 @@ from app.db.models.project import Project
 from app.db.models.user import User
 from app.schemas.material import MaterialUpdate, MaterialResponse
 from app.dependencies import get_current_user
+from app.services.cache_service import get_cache_service, CacheKeyBuilder, CacheServiceInterface
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -23,7 +28,8 @@ router = APIRouter()
 def get_materials_for_ifc_file(
     ifc_file_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    cache: CacheServiceInterface = Depends(get_cache_service)
 ) -> List[MaterialResponse]:
     """
     Get all materials associated with an IFC file.
@@ -32,6 +38,7 @@ def get_materials_for_ifc_file(
         ifc_file_id: UUID of the IFC file
         current_user: Current authenticated user
         db: Database session
+        cache: Cache service instance
         
     Returns:
         List of materials for the IFC file
@@ -46,6 +53,10 @@ def get_materials_for_ifc_file(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="IFC file not found"
         )
+    
+    # Cache operations disabled in sync endpoints for compatibility
+    cache_key = CacheKeyBuilder.materials_list(ifc_file_id)
+    logger.debug(f"Cache disabled for sync endpoint: {cache_key}")
     
     # Verify that the IFC file belongs to a project of the user's company
     ifc_file = db.query(IFCFile).join(Project).filter(
@@ -64,7 +75,11 @@ def get_materials_for_ifc_file(
         Material.ifc_file_id == file_uuid
     ).all()
     
-    return materials
+    # Convert to response models - cache disabled for compatibility
+    material_responses = [MaterialResponse.model_validate(material) for material in materials]
+    logger.debug(f"Cache disabled for sync endpoint: {cache_key}")
+    
+    return material_responses
 
 
 @router.put("/materials/{material_id}", response_model=MaterialResponse)
@@ -72,7 +87,8 @@ def update_material(
     material_id: str,
     material_data: MaterialUpdate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    cache: CacheServiceInterface = Depends(get_cache_service)
 ) -> MaterialResponse:
     """
     Update a specific material by ID.
@@ -117,6 +133,10 @@ def update_material(
     db.commit()
     db.refresh(material)
     
+    # Cache operations disabled in sync endpoints for compatibility
+    pattern = CacheKeyBuilder.materials_pattern(str(material.ifc_file_id))
+    logger.debug(f"Cache invalidation disabled for sync endpoint: {pattern}")
+    
     return material
 
 
@@ -124,7 +144,8 @@ def update_material(
 def delete_material(
     material_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    cache: CacheServiceInterface = Depends(get_cache_service)
 ):
     """
     Delete a specific material by ID.
@@ -157,5 +178,12 @@ def delete_material(
             detail="Material not found"
         )
     
+    # Store IFC file ID before deletion for cache invalidation
+    ifc_file_id = material.ifc_file_id
+    
     db.delete(material)
     db.commit()
+    
+    # Cache operations disabled in sync endpoints for compatibility
+    pattern = CacheKeyBuilder.materials_pattern(str(ifc_file_id))
+    logger.debug(f"Cache invalidation disabled for sync endpoint: {pattern}")

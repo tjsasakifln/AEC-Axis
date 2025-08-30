@@ -1,0 +1,14 @@
+Collecting aioredis
+  Downloading aioredis-2.0.1-py3-none-any.whl.metadata (15 kB)
+Requirement already satisfied: redis[hiredis] in c:\users\tj_sa\appdata\local\programs\python\python312\lib\site-packages (6.2.0)
+Collecting hiredis>=3.2.0 (from redis[hiredis])
+  Downloading hiredis-3.2.1-cp312-cp312-win_amd64.whl.metadata (7.7 kB)
+Collecting async-timeout (from aioredis)
+  Downloading async_timeout-5.0.1-py3-none-any.whl.metadata (5.1 kB)
+Requirement already satisfied: typing-extensions in c:\users\tj_sa\appdata\local\programs\python\python312\lib\site-packages (from aioredis) (4.14.0)
+Downloading aioredis-2.0.1-py3-none-any.whl (71 kB)
+Downloading hiredis-3.2.1-cp312-cp312-win_amd64.whl (22 kB)
+Downloading async_timeout-5.0.1-py3-none-any.whl (6.2 kB)
+Installing collected packages: hiredis, async-timeout, aioredis
+
+Successfully installed aioredis-2.0.1 async-timeout-5.0.1 hiredis-3.2.1

@@ -13,6 +13,7 @@ from app.api.materials import router as materials_router
 from app.api.rfqs import router as rfqs_router
 from app.api.quotes import router as quotes_router
 from app.api.websockets import router as websockets_router
+from app.api.health import router as health_router
 
 app = FastAPI(
     title="AEC Axis API",
@@ -31,6 +32,7 @@ app.include_router(materials_router)
 app.include_router(rfqs_router)
 app.include_router(quotes_router)
 app.include_router(websockets_router)
+app.include_router(health_router)
 
 
 @app.get("/")

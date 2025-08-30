@@ -41,3 +41,6 @@ python-dotenv
 
 # Database Migration
 alembic
+
+# Cache
+redis[hiredis]>=4.5.0
