@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
 import { useProjects, useCreateProject } from '../hooks/useProjects'
+import { ProjectCreationCelebration } from '../components/ProjectCreationCelebration'
 
-import { CreateProjectRequest } from '../services/api'
+import { CreateProjectRequest, Project } from '../services/api'
 
 // Remove local interfaces as they're now imported from the API service
 
@@ -25,6 +26,8 @@ function Projects() {
   const [editingProject, setEditingProject] = useState<any>(null)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
+  const [showCelebration, setShowCelebration] = useState(false)
+  const [createdProjectName, setCreatedProjectName] = useState('')
   
   // Search and filter state
   const [searchTerm, setSearchTerm] = useState('')
@@ -116,12 +119,17 @@ function Projects() {
     try {
       await createProjectMutation.mutateAsync(projectData)
       setShowCreateModal(false)
-      setMessage('Projeto criado com sucesso!')
-      setTimeout(() => setMessage(''), 5000)
+      setCreatedProjectName(projectData.name)
+      setShowCelebration(true)
     } catch (err) {
       setMessage('Erro ao criar projeto')
       console.error(err)
     }
+  }
+
+  const handleCelebrationComplete = () => {
+    setShowCelebration(false)
+    setCreatedProjectName('')
   }
 
   const handleEditProject = async (projectData: CreateProjectRequest) => {
@@ -469,6 +477,12 @@ function Projects() {
           onEdit={handleEditProject}
         />
       )}
+
+      <ProjectCreationCelebration
+        isVisible={showCelebration}
+        projectName={createdProjectName}
+        onComplete={handleCelebrationComplete}
+      />
     </div>
   )
 }
