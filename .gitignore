@@ -151,3 +151,20 @@ node_modules/
 
 # Uploads directory
 backend/uploads/
+
+# Contract Testing - Reports and temporary files
+contract_validation_report.json
+dredd-report.json
+API_CONTRACT_TESTING_REPORT.md
+CONTRACT_TESTING.md
+
+# Contract Testing - Alternative tools and configs
+dredd-minimal.yml
+dredd-simple.yml
+validate_api_contract.py
+
+# Node.js package lock
+package-lock.json
+
+# Batch scripts (Windows specific)
+*.bat

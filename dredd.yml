@@ -1,0 +1,54 @@
+# Dredd API Contract Testing Configuration for AEC Axis
+# This configuration validates that our FastAPI backend implementation
+# matches the OpenAPI 3.0 specification contract
+
+# API Contract Source
+blueprint: openapi.json
+
+# Test Target Server
+endpoint: http://127.0.0.1:8001
+
+# Authentication & Headers
+header:
+  - "Content-Type: application/json"
+  - "Accept: application/json"
+
+# Test Configuration
+language: nodejs
+timeout: 20
+
+# Reporting Options
+reporter:
+  - cli
+  - json
+
+# Output Configuration
+output:
+  - dredd-report.json
+
+# Test Execution Options
+color: true
+loglevel: warning
+
+# Skip certain problematic endpoints during contract testing
+skip:
+  - "/openapi.json > GET"
+  - "/docs > GET"
+  - "/redoc > GET"
+
+# Hook files for test customization
+hookfiles: ./dredd-hooks.js
+
+# Test sorting - run simpler tests first
+sorted: true
+
+# Fail fast on first error (disable for complete reporting)
+# bail: true
+
+# Method order preference
+method:
+  - GET
+  - POST
+  - PUT
+  - PATCH
+  - DELETE

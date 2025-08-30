@@ -1,0 +1,35 @@
+{
+  "name": "aec-axis-contract-testing",
+  "version": "1.0.0",
+  "description": "API Contract Testing Suite for AEC Axis using Dredd",
+  "scripts": {
+    "test:contract": "dredd --config=dredd.yml",
+    "test:contract:verbose": "dredd --config=dredd.yml --level=debug",
+    "export:openapi": "python export_openapi.py",
+    "test:full": "npm run export:openapi && npm run test:contract",
+    "install:dredd": "npm install -g dredd",
+    "validate:config": "dredd --config=dredd.yml --dry-run"
+  },
+  "keywords": [
+    "api",
+    "contract-testing",
+    "dredd",
+    "openapi",
+    "fastapi",
+    "aec-axis"
+  ],
+  "author": "AEC Axis Development Team",
+  "license": "MIT",
+  "devDependencies": {
+    "uuid": "^9.0.1",
+    "dredd": "^14.1.0"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aec-axis/aec-axis.git"
+  }
+}

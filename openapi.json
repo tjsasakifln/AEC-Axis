@@ -1,0 +1,2553 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AEC Axis API",
+    "description": "API for AEC Axis - Construction Supply Chain Optimization",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/auth/token": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Login For Access Token",
+        "description": "Authenticate user and return access token.\n\nArgs:\n    login_data: Login credentials (email and password)\n    db: Database session\n    \nReturns:\n    Access token and token type\n    \nRaises:\n    HTTPException: If authentication fails",
+        "operationId": "login_for_access_token_auth_token_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Register User",
+        "description": "Register a new user and company.\n\nArgs:\n    register_data: Registration data (email, password, company info)\n    db: Database session\n    \nReturns:\n    Access token for the newly created user\n    \nRaises:\n    HTTPException: If registration fails",
+        "operationId": "register_user_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/companies/": {
+      "post": {
+        "tags": [
+          "companies"
+        ],
+        "summary": "Create Company",
+        "description": "Create a new company.\n\nArgs:\n    company_data: Company creation data\n    db: Database session\n    \nReturns:\n    Created company data\n    \nRaises:\n    HTTPException: 400 if CNPJ already exists",
+        "operationId": "create_company_companies__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompanyCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/": {
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Register User",
+        "description": "Register a new user.\n\nArgs:\n    user_data: User registration data\n    db: Database session\n    \nReturns:\n    Created user data\n    \nRaises:\n    HTTPException: 400 if email already exists or company_id doesn't exist",
+        "operationId": "register_user_users__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/": {
+      "post": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Create Project",
+        "description": "Create a new project for the authenticated user's company.\n\nArgs:\n    project_data: Project creation data\n    current_user: Current authenticated user\n    db: Database session\n    \nReturns:\n    Created project data",
+        "operationId": "create_project_projects__post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Get Projects",
+        "description": "Get all projects for the authenticated user's company with search, filtering, and pagination.\n\nArgs:\n    search: Optional search term for project name or address\n    status: Optional filter by RFQ status\n    page: Page number (1-based)\n    limit: Number of items per page\n    current_user: Current authenticated user\n    db: Database session\n    cache: Cache service instance\n    \nReturns:\n    Dictionary containing projects list, total count, and pagination info",
+        "operationId": "get_projects_projects__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Search term for project name or address",
+              "title": "Search"
+            },
+            "description": "Search term for project name or address"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by RFQ status (OPEN, CLOSED, etc.)",
+              "title": "Status"
+            },
+            "description": "Filter by RFQ status (OPEN, CLOSED, etc.)"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number",
+              "default": 1,
+              "title": "Page"
+            },
+            "description": "Page number"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Number of items per page",
+              "default": 10,
+              "title": "Limit"
+            },
+            "description": "Number of items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Projects Projects  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/summary": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Get Projects Summary",
+        "description": "Get summary statistics for projects belonging to the authenticated user's company.\n\nArgs:\n    current_user: Current authenticated user\n    db: Database session\n    \nReturns:\n    Dictionary containing KPI metrics for the company's projects",
+        "operationId": "get_projects_summary_projects_summary_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "type": "object",
+                  "title": "Response Get Projects Summary Projects Summary Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/projects/{project_id}": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Get Project By Id",
+        "description": "Get a specific project by ID.\n\nArgs:\n    project_id: UUID of the project to retrieve\n    current_user: Current authenticated user\n    db: Database session\n    \nReturns:\n    Project data\n    \nRaises:\n    HTTPException: 404 if project not found or doesn't belong to user's company",
+        "operationId": "get_project_by_id_projects__project_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Update Project",
+        "description": "Update a specific project by ID.\n\nArgs:\n    project_id: UUID of the project to update\n    project_data: Project update data\n    current_user: Current authenticated user\n    db: Database session\n    \nReturns:\n    Updated project data\n    \nRaises:\n    HTTPException: 404 if project not found or doesn't belong to user's company",
+        "operationId": "update_project_projects__project_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Delete Project",
+        "description": "Delete a specific project by ID.\n\nArgs:\n    project_id: UUID of the project to delete\n    current_user: Current authenticated user\n    db: Database session\n    \nRaises:\n    HTTPException: 404 if project not found or doesn't belong to user's company",
+        "operationId": "delete_project_projects__project_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/rfqs": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Get Project Rfqs",
+        "description": "Get all RFQs for a specific project.\n\nArgs:\n    project_id: UUID of the project\n    current_user: Current authenticated user\n    db: Database session\n    \nReturns:\n    List of RFQs for the project\n    \nRaises:\n    HTTPException: 404 if project not found or doesn't belong to user's company",
+        "operationId": "get_project_rfqs_projects__project_id__rfqs_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RFQResponse"
+                  },
+                  "title": "Response Get Project Rfqs Projects  Project Id  Rfqs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/suppliers/": {
+      "get": {
+        "tags": [
+          "Suppliers"
+        ],
+        "summary": "Get Suppliers",
+        "description": "Get all suppliers for the authenticated user's company.\n\nArgs:\n    current_user: Current authenticated user\n    db: Database session\n    cache: Cache service instance\n    \nReturns:\n    List of suppliers belonging to the user's company",
+        "operationId": "get_suppliers_suppliers__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SupplierResponse"
+                  },
+                  "type": "array",
+                  "title": "Response Get Suppliers Suppliers  Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Suppliers"
+        ],
+        "summary": "Create Supplier",
+        "description": "Create a new supplier for the authenticated user's company.\n\nArgs:\n    supplier_data: Supplier creation data\n    current_user: Current authenticated user\n    db: Database session\n    \nReturns:\n    Created supplier data\n    \nRaises:\n    HTTPException: 400 if CNPJ already exists for this company",
+        "operationId": "create_supplier_suppliers__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupplierCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupplierResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/suppliers/{supplier_id}": {
+      "get": {
+        "tags": [
+          "Suppliers"
+        ],
+        "summary": "Get Supplier By Id",
+        "description": "Get a specific supplier by ID.\n\nArgs:\n    supplier_id: UUID of the supplier to retrieve\n    current_user: Current authenticated user\n    db: Database session\n    \nReturns:\n    Supplier data\n    \nRaises:\n    HTTPException: 404 if supplier not found or doesn't belong to user's company",
+        "operationId": "get_supplier_by_id_suppliers__supplier_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "supplier_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Supplier Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupplierResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Suppliers"
+        ],
+        "summary": "Update Supplier",
+        "description": "Update a specific supplier by ID.\n\nArgs:\n    supplier_id: UUID of the supplier to update\n    supplier_data: Supplier update data\n    current_user: Current authenticated user\n    db: Database session\n    \nReturns:\n    Updated supplier data\n    \nRaises:\n    HTTPException: 404 if supplier not found or doesn't belong to user's company",
+        "operationId": "update_supplier_suppliers__supplier_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "supplier_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Supplier Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupplierUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupplierResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Suppliers"
+        ],
+        "summary": "Delete Supplier",
+        "description": "Delete a specific supplier by ID.\n\nArgs:\n    supplier_id: UUID of the supplier to delete\n    current_user: Current authenticated user\n    db: Database session\n    \nRaises:\n    HTTPException: 404 if supplier not found or doesn't belong to user's company",
+        "operationId": "delete_supplier_suppliers__supplier_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "supplier_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Supplier Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/ifc-files": {
+      "post": {
+        "tags": [
+          "IFC Files"
+        ],
+        "summary": "Upload Ifc File",
+        "description": "Upload an IFC file to a project.\n\nArgs:\n    project_id: UUID of the project to upload the file to\n    file: The IFC file to upload\n    current_user: Current authenticated user\n    db: Database session\n    \nReturns:\n    Created IFC file record with processing status\n    \nRaises:\n    HTTPException: 400 if file is not an IFC file\n    HTTPException: 404 if project not found or doesn't belong to user's company",
+        "operationId": "upload_ifc_file_projects__project_id__ifc_files_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_ifc_file_projects__project_id__ifc_files_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IFCFileResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "IFC Files"
+        ],
+        "summary": "Get Ifc Files For Project",
+        "description": "Get all IFC files for a specific project.\n\nArgs:\n    project_id: UUID of the project to get files for\n    current_user: Current authenticated user\n    db: Database session\n    \nReturns:\n    List of IFC files associated with the project\n    \nRaises:\n    HTTPException: 404 if project not found or doesn't belong to user's company",
+        "operationId": "get_ifc_files_for_project_projects__project_id__ifc_files_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IFCFileResponse"
+                  },
+                  "title": "Response Get Ifc Files For Project Projects  Project Id  Ifc Files Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ifc-files/{ifc_file_id}/materials": {
+      "get": {
+        "summary": "Get Materials For Ifc File",
+        "description": "Get all materials associated with an IFC file.\n\nArgs:\n    ifc_file_id: UUID of the IFC file\n    current_user: Current authenticated user\n    db: Database session\n    cache: Cache service instance\n    \nReturns:\n    List of materials for the IFC file\n    \nRaises:\n    HTTPException: 404 if IFC file not found or doesn't belong to user's company",
+        "operationId": "get_materials_for_ifc_file_ifc_files__ifc_file_id__materials_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ifc_file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ifc File Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MaterialResponse"
+                  },
+                  "title": "Response Get Materials For Ifc File Ifc Files  Ifc File Id  Materials Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/materials/{material_id}": {
+      "put": {
+        "summary": "Update Material",
+        "description": "Update a specific material by ID.\n\nArgs:\n    material_id: UUID of the material to update\n    material_data: Material update data\n    current_user: Current authenticated user\n    db: Database session\n    \nReturns:\n    Updated material data\n    \nRaises:\n    HTTPException: 404 if material not found or doesn't belong to user's company",
+        "operationId": "update_material_materials__material_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "material_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Material Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaterialUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterialResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Material",
+        "description": "Delete a specific material by ID.\n\nArgs:\n    material_id: UUID of the material to delete\n    current_user: Current authenticated user\n    db: Database session\n    \nRaises:\n    HTTPException: 404 if material not found or doesn't belong to user's company",
+        "operationId": "delete_material_materials__material_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "material_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Material Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rfqs/": {
+      "post": {
+        "tags": [
+          "RFQs"
+        ],
+        "summary": "Create Rfq",
+        "description": "Create a new RFQ for the authenticated user's company.\n\nArgs:\n    rfq_data: RFQ creation data\n    current_user: Current authenticated user\n    db: Database session\n    \nReturns:\n    Created RFQ data\n    \nRaises:\n    HTTPException: 404 if project, materials, or suppliers not found or don't belong to user's company",
+        "operationId": "create_rfq_rfqs__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RFQCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RFQResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/rfqs/{rfq_id}/dashboard": {
+      "get": {
+        "tags": [
+          "RFQs"
+        ],
+        "summary": "Get Quote Comparison Data",
+        "description": "Get quote comparison data for dashboard.\n\nArgs:\n    rfq_id: RFQ UUID\n    current_user: Current authenticated user\n    db: Database session\n    \nReturns:\n    Dashboard data with materials and their quotes grouped for comparison\n    \nRaises:\n    HTTPException: 404 if RFQ not found or doesn't belong to user's company",
+        "operationId": "get_quote_comparison_data_rfqs__rfq_id__dashboard_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "rfq_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Rfq Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteDashboardResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/quotes/{token}": {
+      "get": {
+        "tags": [
+          "Quotes"
+        ],
+        "summary": "Get Quote Details",
+        "description": "Get RFQ details using a secure JWT token for quote submission.\n\nArgs:\n    token: JWT token containing RFQ and supplier information\n    db: Database session\n    \nReturns:\n    RFQ details including project and materials information\n    \nRaises:\n    HTTPException: 401 if token is invalid/expired, 403 if token already used, 404 if RFQ not found",
+        "operationId": "get_quote_details_quotes__token__get",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteDetailsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Quotes"
+        ],
+        "summary": "Submit Quote",
+        "description": "Submit a quotation using a secure JWT token.\n\nArgs:\n    token: JWT token containing RFQ and supplier information\n    quote_data: Quote submission data\n    db: Database session\n    \nReturns:\n    Created quote data\n    \nRaises:\n    HTTPException: 401 if token is invalid/expired, 403 if token already used, 404 if RFQ/supplier not found",
+        "operationId": "submit_quote_quotes__token__post",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuoteCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/cache": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Get Cache Health",
+        "description": "Get cache service health status.\n\nArgs:\n    cache: Cache service instance\n    \nReturns:\n    Dictionary with cache health information",
+        "operationId": "get_cache_health_health_cache_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get Cache Health Health Cache Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Get Overall Health",
+        "description": "Get overall application health status.\n\nArgs:\n    cache: Cache service instance\n    \nReturns:\n    Dictionary with overall health status",
+        "operationId": "get_overall_health_health__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Get Overall Health Health  Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Read Root",
+        "description": "Health check endpoint.",
+        "operationId": "read_root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_upload_ifc_file_projects__project_id__ifc_files_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_ifc_file_projects__project_id__ifc_files_post"
+      },
+      "CompanyCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name",
+            "description": "Company name"
+          },
+          "cnpj": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Cnpj",
+            "description": "Company CNPJ"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email",
+            "description": "Company email"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address",
+            "description": "Company address"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone",
+            "description": "Company phone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "cnpj"
+        ],
+        "title": "CompanyCreate",
+        "description": "Schema for creating a new company."
+      },
+      "CompanyResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name",
+            "description": "Company name"
+          },
+          "cnpj": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Cnpj",
+            "description": "Company CNPJ"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email",
+            "description": "Company email"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address",
+            "description": "Company address"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone",
+            "description": "Company phone"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "cnpj",
+          "id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "CompanyResponse",
+        "description": "Schema for company responses."
+      },
+      "DashboardMaterial": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "rfq_item_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Rfq Item Id"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "quantity": {
+            "type": "string",
+            "title": "Quantity"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          },
+          "quotes": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardQuoteItem"
+            },
+            "type": "array",
+            "title": "Quotes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "rfq_item_id",
+          "description",
+          "quantity",
+          "unit",
+          "quotes"
+        ],
+        "title": "DashboardMaterial",
+        "description": "Schema for material with quotes in dashboard."
+      },
+      "DashboardQuoteItem": {
+        "properties": {
+          "price": {
+            "type": "string",
+            "title": "Price"
+          },
+          "lead_time_days": {
+            "type": "integer",
+            "title": "Lead Time Days"
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Submitted At"
+          },
+          "supplier": {
+            "$ref": "#/components/schemas/SupplierInfo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "price",
+          "lead_time_days",
+          "submitted_at",
+          "supplier"
+        ],
+        "title": "DashboardQuoteItem",
+        "description": "Schema for quote item in dashboard comparison."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "IFCFileResponse": {
+        "properties": {
+          "original_filename": {
+            "type": "string",
+            "title": "Original Filename",
+            "description": "Original filename of the uploaded IFC file"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Processing status of the IFC file",
+            "default": "PENDING"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "file_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Path"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "original_filename",
+          "id",
+          "project_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "IFCFileResponse",
+        "description": "Schema for IFC File responses."
+      },
+      "LoginRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "LoginRequest",
+        "description": "Request model for user login."
+      },
+      "MaterialInfo": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "rfq_item_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Rfq Item Id"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "quantity": {
+            "type": "string",
+            "title": "Quantity"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "rfq_item_id",
+          "description",
+          "quantity",
+          "unit"
+        ],
+        "title": "MaterialInfo",
+        "description": "Schema for material information in quote details."
+      },
+      "MaterialResponse": {
+        "properties": {
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Description",
+            "description": "Material description"
+          },
+          "quantity": {
+            "type": "string",
+            "title": "Quantity",
+            "description": "Material quantity"
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Unit",
+            "description": "Material unit"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "ifc_file_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Ifc File Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "description",
+          "quantity",
+          "unit",
+          "id",
+          "ifc_file_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "MaterialResponse",
+        "description": "Schema for material responses."
+      },
+      "MaterialUpdate": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Material description"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity",
+            "description": "Material quantity"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit",
+            "description": "Material unit"
+          }
+        },
+        "type": "object",
+        "title": "MaterialUpdate",
+        "description": "Schema for updating a material."
+      },
+      "ProjectCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name",
+            "description": "Project name"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address",
+            "description": "Project address"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Date",
+            "description": "Project start date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ProjectCreate",
+        "description": "Schema for creating a new project."
+      },
+      "ProjectInfo": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ProjectInfo",
+        "description": "Schema for project information in quote details."
+      },
+      "ProjectResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name",
+            "description": "Project name"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address",
+            "description": "Project address"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Date",
+            "description": "Project start date"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "company_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Company Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "id",
+          "company_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ProjectResponse",
+        "description": "Schema for project responses."
+      },
+      "ProjectUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Project name"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address",
+            "description": "Project address"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Date",
+            "description": "Project start date"
+          }
+        },
+        "type": "object",
+        "title": "ProjectUpdate",
+        "description": "Schema for updating a project."
+      },
+      "QuoteCreate": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/QuoteItemCreate"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Items",
+            "description": "List of quoted items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "QuoteCreate",
+        "description": "Schema for creating a quote."
+      },
+      "QuoteDashboardResponse": {
+        "properties": {
+          "rfq_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Rfq Id"
+          },
+          "project": {
+            "$ref": "#/components/schemas/ProjectInfo"
+          },
+          "materials": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardMaterial"
+            },
+            "type": "array",
+            "title": "Materials"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rfq_id",
+          "project",
+          "materials"
+        ],
+        "title": "QuoteDashboardResponse",
+        "description": "Schema for quote dashboard comparison response."
+      },
+      "QuoteDetailsResponse": {
+        "properties": {
+          "rfq_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Rfq Id"
+          },
+          "project": {
+            "$ref": "#/components/schemas/ProjectInfo"
+          },
+          "materials": {
+            "items": {
+              "$ref": "#/components/schemas/MaterialInfo"
+            },
+            "type": "array",
+            "title": "Materials"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rfq_id",
+          "project",
+          "materials"
+        ],
+        "title": "QuoteDetailsResponse",
+        "description": "Schema for quote details responses (GET endpoint)."
+      },
+      "QuoteItemCreate": {
+        "properties": {
+          "rfq_item_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Rfq Item Id",
+            "description": "RFQ Item ID this quote refers to"
+          },
+          "price": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Price",
+            "description": "Quoted price for the item"
+          },
+          "lead_time_days": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Lead Time Days",
+            "description": "Lead time in days for delivery"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rfq_item_id",
+          "price",
+          "lead_time_days"
+        ],
+        "title": "QuoteItemCreate",
+        "description": "Schema for creating a quote item."
+      },
+      "QuoteItemResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "rfq_item_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Rfq Item Id"
+          },
+          "price": {
+            "type": "string",
+            "title": "Price"
+          },
+          "lead_time_days": {
+            "type": "integer",
+            "title": "Lead Time Days"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "rfq_item_id",
+          "price",
+          "lead_time_days",
+          "created_at"
+        ],
+        "title": "QuoteItemResponse",
+        "description": "Schema for quote item responses."
+      },
+      "QuoteResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "rfq_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Rfq Id"
+          },
+          "supplier_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Supplier Id"
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Submitted At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "quote_items": {
+            "items": {
+              "$ref": "#/components/schemas/QuoteItemResponse"
+            },
+            "type": "array",
+            "title": "Quote Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "rfq_id",
+          "supplier_id",
+          "submitted_at",
+          "created_at"
+        ],
+        "title": "QuoteResponse",
+        "description": "Schema for quote responses."
+      },
+      "RFQCreate": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "Project ID for the RFQ"
+          },
+          "material_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Material Ids",
+            "description": "List of material IDs to include in RFQ"
+          },
+          "supplier_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Supplier Ids",
+            "description": "List of supplier IDs to send RFQ to"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "material_ids",
+          "supplier_ids"
+        ],
+        "title": "RFQCreate",
+        "description": "Schema for creating a new RFQ."
+      },
+      "RFQItemResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "material_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Material Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "material_id",
+          "created_at"
+        ],
+        "title": "RFQItemResponse",
+        "description": "Schema for RFQ item responses."
+      },
+      "RFQResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "rfq_items": {
+            "items": {
+              "$ref": "#/components/schemas/RFQItemResponse"
+            },
+            "type": "array",
+            "title": "Rfq Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "RFQResponse",
+        "description": "Schema for RFQ responses."
+      },
+      "RegisterRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          },
+          "company_name": {
+            "type": "string",
+            "title": "Company Name"
+          },
+          "cnpj": {
+            "type": "string",
+            "title": "Cnpj"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password",
+          "company_name",
+          "cnpj"
+        ],
+        "title": "RegisterRequest",
+        "description": "Request model for user registration."
+      },
+      "SupplierCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name",
+            "description": "Supplier name"
+          },
+          "cnpj": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Cnpj",
+            "description": "Supplier CNPJ"
+          },
+          "email": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Email",
+            "description": "Supplier email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "cnpj",
+          "email"
+        ],
+        "title": "SupplierCreate",
+        "description": "Schema for creating a new supplier."
+      },
+      "SupplierInfo": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "cnpj": {
+            "type": "string",
+            "title": "Cnpj"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "email",
+          "cnpj"
+        ],
+        "title": "SupplierInfo",
+        "description": "Schema for supplier information in dashboard."
+      },
+      "SupplierResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name",
+            "description": "Supplier name"
+          },
+          "cnpj": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Cnpj",
+            "description": "Supplier CNPJ"
+          },
+          "email": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Email",
+            "description": "Supplier email"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "company_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Company Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "cnpj",
+          "email",
+          "id",
+          "company_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "SupplierResponse",
+        "description": "Schema for supplier responses."
+      },
+      "SupplierUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Supplier name"
+          },
+          "cnpj": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cnpj",
+            "description": "Supplier CNPJ"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email",
+            "description": "Supplier email"
+          }
+        },
+        "type": "object",
+        "title": "SupplierUpdate",
+        "description": "Schema for updating a supplier with optional fields."
+      },
+      "TokenResponse": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "token_type"
+        ],
+        "title": "TokenResponse",
+        "description": "Response model for token endpoint."
+      },
+      "UserCreate": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "description": "User email"
+          },
+          "full_name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Full Name",
+            "description": "User full name"
+          },
+          "company_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Company Id",
+            "description": "Company ID"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "title": "Password",
+            "description": "User password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "full_name",
+          "company_id",
+          "password"
+        ],
+        "title": "UserCreate",
+        "description": "Schema for creating a new user."
+      },
+      "UserResponse": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "description": "User email"
+          },
+          "full_name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Full Name",
+            "description": "User full name"
+          },
+          "company_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Company Id",
+            "description": "Company ID"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "full_name",
+          "company_id",
+          "id",
+          "is_active",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "UserResponse",
+        "description": "Schema for user responses."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8001",
+      "description": "Development server"
+    }
+  ]
+}
